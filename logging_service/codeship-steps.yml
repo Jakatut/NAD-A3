@@ -1,6 +1,0 @@
-- service: app
-  name: app
-  command: ls
-- service: postgres
-  name: postgres
-  command: ls

@@ -2,7 +2,7 @@ package messages
 
 import "time"
 
-type log Struct {
+type log struct {
 	CreatedDate		time.Time	`json:"created_date"`
 	UpdatedDate 	time.Time	`json:"updated_date"`
 	Severity 		int8		`json:"severity"` // Severity levels are 1-7 (lowest to highest)
