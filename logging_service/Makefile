@@ -14,3 +14,6 @@ clean:
 
 heroku: $(DOCKER_CMD)
 	heroku container:push web
+
+push-logging_service_heroku:
+	git subtree push --prefix NAD-A3/logging_service heroku master
