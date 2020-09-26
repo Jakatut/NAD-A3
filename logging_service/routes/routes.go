@@ -6,10 +6,9 @@ import (
 	"logging_service/handlers"
 )
 
-// type gin.Context = Context
-// type gin.Engine = Engine
+type Engine = gin.Engine
 
-func Setup() *gin.Engine {
+func Setup() *Engine {
 	port := os.Getenv("PORT")
 	router := gin.New()
 	router.Use(gin.Logger())
@@ -28,7 +27,7 @@ func Setup() *gin.Engine {
 // Define parameters in the route name like: /user/:userid/status
 // and get the value with c.Param("userid") in the callback.
 // Callbacks should be defined under logging_service/app/handlers
-func enableRoutes(router *gin.Engine) {
+func enableRoutes(router *Engine) {
 
 	router.GET("/log", handlers.HandleGetLog, nil)
 }
