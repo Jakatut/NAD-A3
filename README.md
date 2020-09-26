@@ -64,10 +64,13 @@ Each log file will hold up to 2000 logs. Once capacity is reached, a new log fil
 
 The log file's will have a format of:
 
-`severity<severity-level_<first-message-number>-<last-message-number>.txt`
+`severity<severity-level_<first-message-number>-<last-message-number>_<created-date-time>.txt`
 
 e.g.:
 
-`severity1_1-2000.txt`, `severity1_2001-4000.txt`, etc.
+`severity1_1-2000_2018-11-01T18:39:19.txt`, `severity1_2001-4000_2018-12-01T18:39:19.txt`, etc.
 
 This will allow quick access to log files via query, but may add some overhead if there are a lot of logs stored because opening files may be slow.
+Having the created date time allows us to easily query based on the time.
+
+!! Possibly read files concurrently with threads to read faster: https://hackernoon.com/leveraging-multithreading-to-read-large-files-faster-in-go-lmn32t7

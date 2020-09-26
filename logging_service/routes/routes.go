@@ -28,6 +28,17 @@ func Setup() *Engine {
 // and get the value with c.Param("userid") in the callback.
 // Callbacks should be defined under logging_service/app/handlers
 func enableRoutes(router *Engine) {
+	
+	// root
+	router.GET("/", handlers.HandleGetRoot, nil)
 
-	router.GET("/log", handlers.HandleGetLog, nil)
+	
+
+	// Log Types //
+	// router.GET("/log/debug", handlers.HandleGetDebugLog, nil)
+	// router.GET("/log/info", handlers.HandleGetInfoLog, nil)
+	// router.GET("/log/warn", handlers.HandleGetWarnLog, nil)
+	// router.GET("/log/error", handlers.HandleGetErrorLog, nil)
+	// router.GET("/log/fatal", handlers.HandleGetFatalLog, nil)
+	router.GET("/log", handlers.HandleGetLog, nil)				// ALL
 }
