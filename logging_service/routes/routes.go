@@ -6,14 +6,6 @@ import (
 	"logging_service/handlers"
 )
 
-const (
-	MethodGet 		= "GET"
-	MethodPost 		= "POST"
-	MethodPut 		= "PUT"
-	MethodDelete	= "DELETE"
-	MethodPatch		= "PATCH"
-)
-
 // type gin.Context = Context
 // type gin.Engine = Engine
 
@@ -22,8 +14,8 @@ func Setup() *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Logger())
 
-	router.LoadHTMLGlob("public/templates/*.tmpl.html")	// TODO: Maybe remove
-	router.Static("public/static", "static")			// Here too.
+	router.LoadHTMLGlob("public/templates/*.tmpl.html")
+	router.Static("public/static", "static")
 	enableRoutes(router)
 
 	router.Run(":" + port)
