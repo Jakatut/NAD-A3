@@ -5,6 +5,9 @@ DOCKER_CMD=$(DOCKER_BUILD)/go-getting-started
 $(DOCKER_CMD): clean
 	mkdir -p $(DOCKER_BUILD)
 	$(GO_BUILD_ENV) go build -v -o $(DOCKER_CMD) .
+	
+build:
+	go build -o bin/logging_service -v .
 
 clean:
 	rm -rf $(DOCKER_BUILD)
