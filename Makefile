@@ -1,4 +1,2 @@
-
-
-push-app-heroku:
-	git subtree push --prefix logging_service/app heroku master
+push-logging_service_heroku:
+	git subtree push --prefix logging_service heroku master
