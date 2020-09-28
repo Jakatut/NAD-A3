@@ -1,10 +1,12 @@
 package main
 
 import (
-	_ "github.com/heroku/x/hmetrics/onload"
 	"logging_service/routes"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	routes.Setup()
+	router := gin.New()
+	routes.Setup(router)
 }

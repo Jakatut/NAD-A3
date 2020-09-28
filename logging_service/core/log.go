@@ -1,8 +1,15 @@
 package log
 
+import (
+	"logging_service/messages"
+)
+
+// Log message.
+type Log = messages.Log
+
 // Writing logs to files:
 
-/* 
+/*
  * 1. Get payload
  * 2. Check severity level
  * 3. Check message counts
@@ -10,6 +17,16 @@ package log
  * 5. Otherwise, use the most recent log file for that severity level.
  * 6. Injest log message, write to file, close file.
  */
+
+// Writes a log to a logfile.
+func WriteLog(message Log) {
+
+}
+
+// Write a bulk of logs to log files.
+func WriteLogs(message *Log) {
+
+}
 
 // Reading log files
 

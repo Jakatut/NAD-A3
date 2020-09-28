@@ -74,3 +74,41 @@ This will allow quick access to log files via query, but may add some overhead i
 Having the created date time allows us to easily query based on the time.
 
 !! Possibly read files concurrently with threads to read faster: https://hackernoon.com/leveraging-multithreading-to-read-large-files-faster-in-go-lmn32t7
+
+
+## Debugging
+
+### Create your launch.json
+
+Under .vscode, if it does not already exists, write your launch.json file:
+
+```
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Launch",
+			"type": "go",
+			"request": "launch",
+			"mode": "auto",
+			"program": "${workspaceFolder}/logging_service",
+			"env": {},
+			"args": []
+		}
+	]
+}
+```
+
+### Install dlv:
+
+!!!!! OUTSIDE OF THE PROJECT, RUN THIS GO COMMAND !!!!!
+
+```
+go get github.com/go-delve/delve/cmd/dlv
+```
+
+Make sure you have a GOPATH setup.
+
+The GOPATH environment variable specifies the location of your workspace. It defaults to a directory named go inside your home directory, so $HOME/go on Unix, $home/go on Plan 9, and %USERPROFILE%\go (usually C:\Users\YourName\go) on Windows.
+
+Under the debug tab in vscode, click launch. You can set breakpoints and watch variables in this tab.

@@ -1,24 +1,23 @@
 package routes
 
 import (
-	"os"
-	"github.com/gin-gonic/gin"
 	"logging_service/handlers"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Engine = gin.Engine
 
-func Setup() *Engine {
-	port := os.Getenv("PORT")
-	router := gin.New()
+func Setup(router *Engine) {
+	// port := os.Getenv("PORT")
 	router.Use(gin.Logger())
 
 	router.LoadHTMLGlob("public/templates/*.tmpl.html")
 	router.Static("public/static", "static")
 	enableRoutes(router)
 
-	router.Run(":" + port)
-	return router
+	router.Run(":8080")
+	// router.Run(":" + port)
 }
 
 // Add your route here with:
@@ -28,17 +27,18 @@ func Setup() *Engine {
 // and get the value with c.Param("userid") in the callback.
 // Callbacks should be defined under logging_service/app/handlers
 func enableRoutes(router *Engine) {
-	
-	// root
-	router.GET("/", handlers.HandleGetRoot, nil)
 
-	
+	if router != nil {
+		// Root //
+		router.GET("/", handlers.HandleGetRoot)
 
-	// Log Types //
-	// router.GET("/log/debug", handlers.HandleGetDebugLog, nil)
-	// router.GET("/log/info", handlers.HandleGetInfoLog, nil)
-	// router.GET("/log/warn", handlers.HandleGetWarnLog, nil)
-	// router.GET("/log/error", handlers.HandleGetErrorLog, nil)
-	// router.GET("/log/fatal", handlers.HandleGetFatalLog, nil)
-	router.GET("/log", handlers.HandleGetLog, nil)				// ALL
+		// Log Types //
+		// router.GET("/log/debug", handlers.HandleGetDebugLog, nil)
+		// router.GET("/log/info", handlers.HandleGetInfoLog, nil)
+		// router.GET("/log/warn", handlers.HandleGetWarnLog, nil)
+		// router.GET("/log/error", handlers.HandleGetErrorLog, nil)
+		// router.GET("/log/fatal", handlers.HandleGetFatalLog, nil)
+		router.GET("/log", handlers.HandleGetLog) // ALL
+		router.POST("/log", handlers.HandlePostLog)
+	}
 }
