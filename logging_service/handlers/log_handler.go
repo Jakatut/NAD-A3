@@ -29,7 +29,6 @@ func HandlePostLog(c *Context) {
 	// c.JSON(200, reqBody)
 	// fmt.Println(reqBody)
 	// c.HTML(http.StatusOK, "index.tmpl.html", nil)\
-	c.HTML(http.StatusOK, "index.tmpl.html", nil)
 	log := new(messages.Log)
 	err := c.BindJSON(log)
 	if err != nil {
@@ -37,4 +36,6 @@ func HandlePostLog(c *Context) {
 	} else {
 		fmt.Println(log)
 	}
+
+	c.JSON(200, log)
 }

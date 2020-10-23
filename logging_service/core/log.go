@@ -1,53 +1,82 @@
 package log
 
 import (
+	"bufio"
+	"fmt"
+	"log"
 	"logging_service/messages"
+	"os"
+	"sync"
+	"time"
 )
+
+type SafeCounter struct {
+	startIndex   int
+	endIndex     int
+	currentIndex int
+	mux          sync.Mutex
+}
+
+type LogCounts struct {
+	DEBUG   SafeCounter
+	INFO    SafeCounter
+	WARNING SafeCounter
+	ERROR   SafeCounter
+	FATAL   SafeCounter
+}
 
 // Log message.
 type Log = messages.Log
+type Writer int
 
-// Writing logs to files:
+// Writing
 
-/*
- * 1. Get payload
- * 2. Check severity level
- * 3. Check message counts
- * 4. If message count is greater equal to LOG_FILE_MAX_COUNT for the current log file, create a new file.
- * 5. Otherwise, use the most recent log file for that severity level.
- * 6. Injest log message, write to file, close file.
- */
+// WriteLog writes a log to a logfile.
+func WriteLog(message *Log) {
+	logLocation := getLogWriteLocation(message)
 
-// Writes a log to a logfile.
-func WriteLog(message Log) {
+	file, err := os.OpenFile(logLocation, os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer file.Close()
+
+	bufferedWriter := bufio.NewWriter(file)
+	bytesWritten, err := bufferedWriter.Write(
+		buildLogMessage(message),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("Bytes written: %d\n", bytesWritten)
+	bufferedWriter.Flush()
 
 }
 
-// Write a bulk of logs to log files.
+// WriteLogs writes a bulk of logs to log files.
 func WriteLogs(message *Log) {
 
 }
 
-// Reading log files
+func getLogTypeAsString(logType int) string {
+	var logLevels = make(map[int]string)
+	logLevels[1] = "DEBUG"
+	logLevels[2] = "INFO"
+	logLevels[3] = "WARN"
+	logLevels[4] = "ERROR"
+	logLevels[5] = "FATAL"
+	logLevels[6] = "ALL"
 
-/* How you could query:
- * 	date range
- * 	log number/id
- * 	severity level
- * 	message content
- * 	log types
- */
+	return logLevels[logType]
+}
 
-/*
- * 1. Get payload
- * 2. Check for log number/id
- * 		If present, get that specific log.
- *		otherwise, continue.
- * 3. Check for date range
- *		If present, add to search query.
- * 4. Check for severity level(s).
- * 5. If hitting the /logs endpoint instead of /logs/error or /logs/debug, check for log type(s).
- * 6. Check severity level. If present, search only the folder(s) with the severity level(s) given/.
- * 	  Otherwise, check all severity levels.
- * 7. If message content is present, filter out after searching all of these. (Probably will not be implimented).
- */
+func getLogWriteLocation(message *Log) string {
+	return fmt.Sprintf("%s/%s-%d.txt", getLogTypeAsString(int(message.Type)), message.CreatedDate.String(), message.Severity)
+}
+
+func buildLogMessage(message *Log) []byte {
+	return []byte(fmt.Sprintf("[%s]-[%s]-[%d]: %s", message.CreatedDate.Format(time.RFC3339), message.OriginLocation, message.Severity, message.Message))
+}
+
+// Reading
