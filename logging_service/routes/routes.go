@@ -3,6 +3,7 @@ package routes
 import (
 	log "logging_service/core"
 	"logging_service/handlers"
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
@@ -11,15 +12,15 @@ type Engine = gin.Engine
 
 // Setups routes
 func Setup(router *Engine, logCounts *log.LogCounts) {
-	// port := os.Getenv("PORT")
+	port := os.Getenv("PORT")
 	router.Use(gin.Logger())
 
 	router.LoadHTMLGlob("public/templates/*.tmpl.html")
 	router.Static("public/static", "static")
 	enableRoutes(router, logCounts)
 
-	router.Run(":8080")
-	// router.Run(":" + port)
+	// router.Run(":8080")
+	router.Run(":" + port)
 }
 
 // Add your route here with:
