@@ -6,6 +6,7 @@ import (
 	"log"
 	"logging_service/messages"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -51,12 +52,6 @@ func WriteLog(message *Log) {
 	}
 	log.Printf("Bytes written: %d\n", bytesWritten)
 	bufferedWriter.Flush()
-
-}
-
-// WriteLogs writes a bulk of logs to log files.
-func WriteLogs(message *Log) {
-
 }
 
 func getLogTypeAsString(logType int) string {
@@ -76,7 +71,13 @@ func getLogWriteLocation(message *Log) string {
 }
 
 func buildLogMessage(message *Log) []byte {
-	return []byte(fmt.Sprintf("[%s]-[%s]-[%d]: %s", message.CreatedDate.Format(time.RFC3339), message.OriginLocation, message.Severity, message.Message))
+	location := strings.ReplaceAll(message.OriginLocation, "\n", "%0A")
+	messageText := strings.ReplaceAll(message.Message, "\n", "%0A")
+	return []byte(fmt.Sprintf("[%s]-[%s]-[%d]: %s\n", message.CreatedDate.Format(time.RFC3339), location, message.Severity, messageText))
 }
 
 // Reading
+
+func ReadLog() string {
+	return ""
+}
