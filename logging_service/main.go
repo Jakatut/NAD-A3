@@ -1,11 +1,8 @@
 package main
 
 import (
-	log "logging_service/core"
-	"logging_service/messages"
 	"logging_service/routes"
 	"sync"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -25,10 +22,6 @@ func init() {
 }
 
 func main() {
-
-	logMessage := messages.Log{Message: "Hello", OriginLocation: "test", Type: 1, Severity: 1, MessageNumber: 0, CreatedDate: time.Now()}
-	log.WriteLog(&logMessage)
-
 	router := gin.New()
 	routes.Setup(router, &debugWaitGroup, &warningWaitGroup, &infoWaitGroup, &errorWaitGroup, &fatalWaitGroup)
 }

@@ -1,32 +1,17 @@
-package log
+package core
 
 import (
 	"bufio"
 	"fmt"
 	"log"
-	"logging_service/messages"
+	models "logging_service/models"
 	"os"
 	"strings"
-	"sync"
 )
 
-type SafeCounter struct {
-	startIndex   int
-	endIndex     int
-	currentIndex int
-	mux          sync.Mutex
-}
-
-type LogCounts struct {
-	DEBUG   SafeCounter
-	INFO    SafeCounter
-	WARNING SafeCounter
-	ERROR   SafeCounter
-	FATAL   SafeCounter
-}
-
 // Log message.
-type Log = messages.Log
+type Log = models.LogModel
+
 type Writer int
 
 const dateFormat = "January-01-1-15:4:5"
@@ -34,7 +19,7 @@ const dateFormat = "January-01-1-15:4:5"
 // Writing
 
 // WriteLog writes a log to a logfile.
-func WriteLog(message *Log) error {
+func WriteLog(message *models.LogModel) error {
 	logLocation := getLogWriteLocation(message)
 
 	createLogTypeDirectory(message.Type)
@@ -80,19 +65,19 @@ func getLogTypeAsString(logType int8) string {
 	return logLevels[logType]
 }
 
-func getLogWriteLocation(message *Log) string {
+func getLogWriteLocation(message *models.LogModel) string {
 	return fmt.Sprintf("%s/%s-%d.txt", getLogTypeAsString(message.Type), message.CreatedDate.Format(dateFormat), message.Severity)
 }
 
-func buildLogMessage(message *Log) []byte {
-	location := strings.ReplaceAll(message.OriginLocation, "\n", "%0A")
+func buildLogMessage(message *models.LogModel) []byte {
+	location := strings.ReplaceAll(message.Location, "\n", "%0A")
 	messageText := strings.ReplaceAll(message.Message, "\n", "%0A")
 	return []byte(fmt.Sprintf("[%s]-[%s]-[%d]: %s\n", message.CreatedDate.Format(dateFormat), location, message.Severity, messageText))
 }
 
 // Reading
 
-func ReadLog(message *Log) *Log {
+func ReadLog(message *models.LogModel) *models.LogModel {
 	if !message.CreatedDate.IsZero() {
 		logLocation := getLogWriteLocation(message)
 		readLogWithKnownLocation(logLocation)

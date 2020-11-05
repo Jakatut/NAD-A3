@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"logging_service/core"
 	"logging_service/handlers"
 	"sync"
 
@@ -8,8 +9,6 @@ import (
 )
 
 type Engine = gin.Engine
-
-var endpoints map[string]*sync.WaitGroup
 
 // Setups routes
 func Setup(router *Engine, debugWaitGroup *sync.WaitGroup, warningWaitGroup *sync.WaitGroup, infoWaitGroup *sync.WaitGroup, errorWaitGroup *sync.WaitGroup, fatalWaitGroup *sync.WaitGroup) {
@@ -19,18 +18,19 @@ func Setup(router *Engine, debugWaitGroup *sync.WaitGroup, warningWaitGroup *syn
 	router.LoadHTMLGlob("public/templates/*.tmpl.html")
 	router.Static("public/static", "static")
 
-	endpoints = make(map[string]*sync.WaitGroup)
-	endpoints["/log/debug"] = debugWaitGroup
-	endpoints["/log/warninig"] = warningWaitGroup
-	endpoints["/log/info"] = infoWaitGroup
-	endpoints["/log/error"] = errorWaitGroup
-	endpoints["/log/fatal"] = fatalWaitGroup
-	for route, waitGroup := range endpoints {
-		router.GET(route, func(c *gin.Context) {
-			handlers.HandleGetLog(c, waitGroup)
-		})
+	resources := make(map[string]core.HandlerResources)
+	resources["/log/debug"] = core.HandlerResources{WaitGroup: debugWaitGroup, LogChannel: make(chan *core.Result)}
+	resources["/log/warninig"] = core.HandlerResources{WaitGroup: warningWaitGroup, LogChannel: make(chan *core.Result)}
+	resources["/log/info"] = core.HandlerResources{WaitGroup: infoWaitGroup, LogChannel: make(chan *core.Result)}
+	resources["/log/error"] = core.HandlerResources{WaitGroup: errorWaitGroup, LogChannel: make(chan *core.Result)}
+	resources["/log/fatal"] = core.HandlerResources{WaitGroup: fatalWaitGroup, LogChannel: make(chan *core.Result)}
+
+	for route, resource := range resources {
+		// router.GET(route, func(c *gin.Context) {
+		// 	handlers.HandleLog(c, resource)
+		// })
 		router.POST(route, func(c *gin.Context) {
-			handlers.HandlePostLog(c, waitGroup)
+			handlers.HandleLog(c, resource)
 		})
 	}
 
