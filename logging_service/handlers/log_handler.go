@@ -5,38 +5,13 @@ import (
 	"fmt"
 	"logging_service/core"
 	models "logging_service/models"
-	"sync"
 
 	"github.com/gin-gonic/gin"
 )
 
-// // HandleGetLog gets all logs
-// func HandleGetLog(c *Context, resources core.HandlerResources) {
-// 	logData, err := getLogFromRequest(c)
-// 	if err != nil {
-// 		c.JSON(500, errors.New("issue reading data in log request"))
-// 	}
-// 	resources.WaitGroup.Add(1)
-// 	go getRequestWorker(logData, resources.WaitGroup, resources.LogChannel)
-// 	result := <-resources.LogChannel
-// 	c.JSON(200, result)
-// }
-
-// // HandlePostLog posts a log
-// func HandlePostLog(c *Context, resources core.HandlerResources) {
-// 	logData, err := getLogFromRequest(c)
-// 	if err != nil {
-// 		c.JSON(500, errors.New("issue reading data in log request"))
-// 	}
-// 	resources.WaitGroup.Add(1)
-// 	go postRequestWorker(logData, resources.WaitGroup, resources.LogChannel)
-// 	result := <-resources.LogChannel
-// 	c.JSON(200, result)
-// }
-
 // HandleLog handles all post/get requests for any log type.
-func HandleLog(c *Context, resources core.HandlerResources) {
-	logData, err := getLogFromRequest(c)
+func HandleLog(c *Context, mutexPool *core.FileMutexPool) {
+	logData, err := serializeLogFromRequest(c)
 	if err != nil {
 		c.JSON(500, errors.New("issue reading data in log request"))
 	}
@@ -45,16 +20,13 @@ func HandleLog(c *Context, resources core.HandlerResources) {
 	if method != "GET" && method != "POST" {
 		c.JSON(400, errors.New("unsupported methods"))
 	}
-	resources.WaitGroup.Add(1)
 	result := new(core.Result)
 	switch method {
 	case "POST":
-		result = postRequestWorker(logData, resources.WaitGroup)
+		result = postRequestWorker(logData, mutexPool)
 	case "GET":
-		result = getRequestWorker(logData, resources.WaitGroup)
+		result = getRequestWorker(logData, mutexPool)
 	}
-
-	// result := <-resources.LogChannel
 
 	if result.Err != nil {
 		c.JSON(500, result.Err)
@@ -64,7 +36,6 @@ func HandleLog(c *Context, resources core.HandlerResources) {
 		}
 		c.JSON(200, result.Response.Data)
 	}
-
 }
 
 /*
@@ -73,14 +44,12 @@ func HandleLog(c *Context, resources core.HandlerResources) {
  *
  */
 
-func getRequestWorker(logMessage *models.LogModel, waitGroup *sync.WaitGroup) *core.Result {
-	defer waitGroup.Done()
+func getRequestWorker(log *models.LogModel, mutexPool *core.FileMutexPool) *core.Result {
 
 	var result *core.Result
 
-	// if logModel := log.ReadLog(logMessage); logModel != nil {
+	log.ReadLog()
 
-	// } else {
 	logModel := new(models.LogModel)
 	logModel.Severity = 1
 	response := new(core.Response)
@@ -90,14 +59,9 @@ func getRequestWorker(logMessage *models.LogModel, waitGroup *sync.WaitGroup) *c
 	result.Err = nil
 	result.Response = response
 	return result
-
-	// logChannel <- result
-	// }
 }
 
-func postRequestWorker(logMessage *models.LogModel, waitGroup *sync.WaitGroup) *core.Result {
-	defer waitGroup.Done()
-
+func postRequestWorker(logMessage *models.LogModel, mutexPool *core.FileMutexPool) *core.Result {
 	var result *core.Result
 
 	// if err := log.WriteLog(logMessage); err != nil {
@@ -122,7 +86,6 @@ func postRequestWorker(logMessage *models.LogModel, waitGroup *sync.WaitGroup) *
 	result.Err = nil
 	result.Response = response
 	return result
-	// logChannel <- result
 }
 
 /*
@@ -131,7 +94,7 @@ func postRequestWorker(logMessage *models.LogModel, waitGroup *sync.WaitGroup) *
  *
  */
 
-func getLogFromRequest(c *gin.Context) (*models.LogModel, error) {
+func serializeLogFromRequest(c *gin.Context) (*models.LogModel, error) {
 	method := c.Request.Method
 	logData := new(models.LogModel)
 

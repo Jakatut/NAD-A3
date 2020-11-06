@@ -18,3 +18,8 @@ type HandlerResources struct {
 	WaitGroup  *sync.WaitGroup
 	LogChannel chan *Result
 }
+
+type FileMutexPool struct {
+	Pool map[string]sync.RWMutex
+	Lock sync.RWMutex
+}
