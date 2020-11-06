@@ -44,47 +44,33 @@ func HandleLog(c *Context, mutexPool *core.FileMutexPool) {
  *
  */
 
-func getRequestWorker(log *models.LogModel, mutexPool *core.FileMutexPool) *core.Result {
+func getRequestWorker(log *models.LogModel, mutexPool *core.FileMutexPool) (*core.Response, error) {
+	readResult, err := log.ReadLog(mutexPool)
+	if err != nil {
+		return nil, err
+	}
 
-	var result *core.Result
-
-	log.ReadLog()
-
-	logModel := new(models.LogModel)
-	logModel.Severity = 1
-	response := new(core.Response)
-	response.Data = logModel
+	var response *core.Response
 	response.Message = "success"
-	result = new(core.Result)
-	result.Err = nil
-	result.Response = response
-	return result
+	response.Data = readResult
+	return response, nil
 }
 
-func postRequestWorker(logMessage *models.LogModel, mutexPool *core.FileMutexPool) *core.Result {
+func postRequestWorker(logModel *models.LogModel, mutexPool *core.FileMutexPool) *core.Result {
 	var result *core.Result
 
-	// if err := log.WriteLog(logMessage); err != nil {
+	if err := logModel.WriteLog(mutexPool); err != nil {
+		result.Err = err
+		result.Response = nil
+	} else {
+		response := new(core.Response)
+		response.Data = nil
+		response.Message = "Success"
+		result = new(core.Result)
+		result.Err = nil
+		result.Response = response
+	}
 
-	// } else {
-	// 	response := new(core.Response)
-	// 	response.Data = nil
-	// 	response.Message = ""
-	// 	result = new(core.Result)
-	// 	result.Err = nil
-	// 	result.Response = response
-	// 	logChannel <- result
-	// }
-
-	logModel := new(models.LogModel)
-	logModel.Severity = 1
-	logMessage.Message = "hello"
-	response := new(core.Response)
-	response.Data = logModel
-	response.Message = ""
-	result = new(core.Result)
-	result.Err = nil
-	result.Response = response
 	return result
 }
 

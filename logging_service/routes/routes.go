@@ -17,9 +17,9 @@ func Setup(router *gin.Engine, mutexPool *core.FileMutexPool) {
 	resources := []string{"/log/debug", "/log/warninig", "/log/info", "/log/error", "/log/fatal"}
 
 	for _, route := range resources {
-		// router.GET(route, func(c *gin.Context) {
-		// 	handlers.HandleLog(c, resource)
-		// })
+		router.GET(route, func(c *gin.Context) {
+			handlers.HandleLog(c, mutexPool)
+		})
 		router.POST(route, func(c *gin.Context) {
 			handlers.HandleLog(c, mutexPool)
 		})
