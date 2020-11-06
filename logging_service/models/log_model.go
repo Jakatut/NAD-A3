@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"logging_service/core"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -34,14 +33,16 @@ var logLevels = []string{"DEBUG", "INFO", "WARN", "ERROR", "FATAL"}
 
 // LogModel defines the contents of a log
 type LogModel struct {
-	CreatedDate time.Time `schema:"created_date"`
-	Severity    int       `schema:"severity,omitempty"` // Severity levels are 1-7 (lowest to highest)
-	Type        int       `schema:"type,omitempty"`     // DEBUG, INFO, WARN, ERROR, FATAL, ALL
-	Message     string    `schema:"message,omitempty"`
-	Location    string    `schema:"location,omitempty"` // Ideally filename or file location from the software using the logging service.
+	CreatedDate time.Time `json:",omitempty" form:"created_date,omitempty" time_format:"2006-01-02T15:04:05"`
+	Severity    int       `json:"severity,omitempty" form:"severity,omitempty"` // Severity levels are 1-7 (lowest to highest)
+	Type        int       `json:"type,omitempty" form:"type,omitempty"`         // DEBUG, INFO, WARN, ERROR, FATAL, ALL
+	Message     string    `json:"message,omitempty" form:"message,omitempty"`
+	Location    string    `json:"location,omitempty" form:"location,omitempty"` // Ideally filename or file location from the software using the logging service.
+	FromTime    time.Time `json:",omitempty" form:"from,omitempty" time_format:"2006-01-02T15:04:05"`
+	ToTime      time.Time `json:",omitempty" form:"to,omitempty" time_format:"2006-01-02T15:04:05"`
 }
 
-const logDateFormat = "2006-01-02T15-04-05Z07"
+const logDateFormat = "2006-01-02T15-04-05"
 const resourceFileNameDateFormat = "2006-01-02"
 
 // Writing
@@ -131,26 +132,31 @@ func searchLog(location string, logModel *LogModel) []LogModel {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		fmt.Println(scanner.Text())
-		logLine := rawLogToModel(scanner.Text())
-		if logModel.Compare(logLine) {
-			foundLogs = append(foundLogs, *logLine)
+		logLine := rawLogToModel(scanner.Text(), logModel.Type)
+		if logModel.CompareWithoutCreatedDate(logLine) {
+			if !logModel.FromTime.IsZero() && !logModel.ToTime.IsZero() && logModel.createdDateFallsWithinDateRange() {
+				foundLogs = append(foundLogs, *logLine)
+			} else if logModel.FromTime.IsZero() || logModel.FromTime.IsZero() || !logModel.CreatedDate.IsZero() {
+				foundLogs = append(foundLogs, *logLine)
+			}
 		}
 	}
 
-	return nil
+	return foundLogs
 }
 
-func rawLogToModel(rawLog string) *LogModel {
+func rawLogToModel(rawLog string, logType int) *LogModel {
 
-	logTextIndicator := strings.Index(":", rawLog)
+	logTextIndicator := strings.Index(rawLog, ":")
 	// Remove leading and trailing braces, removes the content of the log, and splits the details.
-	logProperties := strings.Split("]-[", rawLog[1:logTextIndicator-1])
+	logProperties := strings.Split(rawLog[1:logTextIndicator-1], "]-[")
 
-	var logModel *LogModel
+	var logModel = new(LogModel)
 	logModel.CreatedDate, _ = time.Parse(logDateFormat, logProperties[0])
-	logModel.Location, _ = url.QueryUnescape(logProperties[1])
+	logModel.Location = logProperties[1]
 	logModel.Severity, _ = strconv.Atoi(logProperties[2])
-	logModel.Message, _ = url.QueryUnescape(rawLog[logTextIndicator:])
+	logModel.Type = logType
+	logModel.Message = rawLog[logTextIndicator+2 : len(rawLog)-1]
 
 	return logModel
 }
@@ -190,9 +196,9 @@ func getLogWriteLocation(logModel *LogModel) (string, error) {
 }
 
 func buildLogMessage(logModel *LogModel) []byte {
-	location := url.QueryEscape(logModel.Location)
-	messageText := url.QueryEscape(logModel.Message)
-	return []byte(fmt.Sprintf("[%s]-[%s]-[%d]:%s\n", time.Now().Format(logDateFormat), location, logModel.Severity, messageText))
+	location := logModel.Location
+	messageText := strings.Replace(logModel.Message, "\n", "\\n", -1)
+	return []byte(fmt.Sprintf("[%s]-[%s]-[%d]:\"%s\"\n", time.Now().Format(logDateFormat), location, logModel.Severity, messageText))
 }
 
 // Compare compares the values between two log models: The receiver and the comparison.
@@ -202,6 +208,13 @@ func (logModel *LogModel) Compare(comparison *LogModel) bool {
 	if !logModel.CreatedDate.IsZero() && logModel.CreatedDate != comparison.CreatedDate {
 		return false
 	}
+	return logModel.CompareWithoutCreatedDate(comparison)
+}
+
+// CompareWithoutCreatedDate compares the values between two log models: The receiver and the comparison.
+// If the two models are the same, true is returned. Otherwise, false.
+func (logModel *LogModel) CompareWithoutCreatedDate(comparison *LogModel) bool {
+
 	if (logModel.Severity >= MinSeverity && logModel.Severity <= MaxSeverity) && logModel.Severity != comparison.Severity {
 		return false
 	}
@@ -216,4 +229,13 @@ func (logModel *LogModel) Compare(comparison *LogModel) bool {
 	}
 
 	return true
+}
+
+func (logModel *LogModel) createdDateFallsWithinDateRange() bool {
+
+	if !logModel.CreatedDate.IsZero() && !logModel.FromTime.IsZero() && !logModel.ToTime.IsZero() {
+		return logModel.CreatedDate.After(logModel.FromTime) && logModel.CreatedDate.Before(logModel.ToTime)
+	}
+
+	return false
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"logging_service/core"
 	models "logging_service/models"
+	"net/url"
 
 	"github.com/gin-gonic/gin"
 )
@@ -83,10 +84,12 @@ func serializeLogFromRequest(c *gin.Context) (*models.LogModel, error) {
 		}
 	case "GET":
 		// logData.CreatedDate = time.Parse(c.Get("created_date"))
-		if err := c.BindQueryString(logData) {
+		if err := c.BindQuery(logData); err != nil {
 			fmt.Println("Erorr binding to log from GET request.")
-			return nil, errors.New("could not bind json to log from GET request")
+			return nil, err
 		}
+		logData.Location, _ = url.QueryUnescape(logData.Location)
+		logData.Message, _ = url.QueryUnescape(logData.Message)
 	default:
 		return nil, errors.New("Invalid request type")
 	}

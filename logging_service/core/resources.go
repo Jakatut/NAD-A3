@@ -20,13 +20,18 @@ type FileMutexPool struct {
 // AddMutex adds a new mutex to the pool map with the key fileName
 // If the key already exists, nothing happens.
 func (fmp *FileMutexPool) addMutex(fileName string) {
+	if fmp.Pool == nil {
+		fmp.Pool = make(map[string]*sync.RWMutex)
+	}
 	fmp.Lock.RLock()
 	if _, ok := fmp.Pool[fileName]; !ok {
+		fmp.Lock.RUnlock()
 		fmp.Lock.Lock()
+		defer fmp.Lock.Unlock()
 		fmp.Pool[fileName] = new(sync.RWMutex)
-		fmp.Lock.Unlock()
+	} else {
+		fmp.Lock.RUnlock()
 	}
-	fmp.Lock.RUnlock()
 }
 
 // LockReadFileMutex locks a log file's read mutex.
