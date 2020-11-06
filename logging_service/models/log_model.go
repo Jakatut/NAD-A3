@@ -6,35 +6,43 @@ import (
 	"fmt"
 	"log"
 	"logging_service/core"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
 // Log Types
 const (
-	ALL   = 0
-	DEBUG = 1
-	INFO  = 2
-	WARN  = 3
-	ERROR = 4
-	FATAL = 5
+	ALL         = 0
+	DEBUG       = 1
+	INFO        = 2
+	WARN        = 3
+	ERROR       = 4
+	FATAL       = 5
+	MinLogLevel = 1
+	MaxLogLevel = 5
+	MinSeverity = 1
+	MaxSeverity = 7
 )
 
 var logLevels = []string{"DEBUG", "INFO", "WARN", "ERROR", "FATAL"}
 
+//json:"created_date,omitempty" form:"created_date,omitempty"
+
 // LogModel defines the contents of a log
 type LogModel struct {
-	CreatedDate time.Time `json:"created_date,omitempty"`
-	Severity    int8      `json:"severity"` // Severity levels are 1-7 (lowest to highest)
-	Type        int8      `json:"type"`     // DEBUG, INFO, WARN, ERROR, FATAL, ALL
-	Message     string    `json:"message"`
-	Location    string    `json:"location"` // Ideally filename or file location from the software using the logging service.
+	CreatedDate time.Time `schema:"created_date"`
+	Severity    int       `schema:"severity,omitempty"` // Severity levels are 1-7 (lowest to highest)
+	Type        int       `schema:"type,omitempty"`     // DEBUG, INFO, WARN, ERROR, FATAL, ALL
+	Message     string    `schema:"message,omitempty"`
+	Location    string    `schema:"location,omitempty"` // Ideally filename or file location from the software using the logging service.
 }
 
-const dateFormat = "January-01-1-15:4:5"
+const logDateFormat = "2006-01-02T15-04-05Z07"
+const resourceFileNameDateFormat = "2006-01-02"
 
 // Writing
 
@@ -69,36 +77,23 @@ func (logModel *LogModel) WriteLog(*core.FileMutexPool) error {
 // Reading
 
 // ReadLog reads a log from the log file.
-func (logModel *LogModel) ReadLog(mutexPool *core.FileMutexPool) (*LogModel, error) {
+func (logModel *LogModel) ReadLog(mutexPool *core.FileMutexPool) ([]LogModel, error) {
 
 	var logs []LogModel
 
 	if !logModel.CreatedDate.IsZero() {
-		logLocations := getFileSearchLocations(logModel)
+		logLocations := logModel.getFileSearchLocations()
 		for _, location := range logLocations {
-			mutexPool.Lock.RLock()
-			if _, ok := mutexPool.Pool[location]; ok {
-
-			} else {
-				mutexPool.Lock.Lock()
-				mutexPool.Pool[location] = sync.RWMutex{}
-				mutexPool.Lock.Lock()
-			}
-			if mutex, ok := mutexPool.Pool[location]; ok {
-				mutex.RLock()
-			}
+			mutexPool.LockReadFileMutex(location)
 			logs = append(logs, searchLog(location, logModel)...)
-			if mutex, ok := mutexPool.Pool[location]; ok {
-				mutex.RUnlock()
-			}
-			mutexPool.Lock.RUnlock()
+			mutexPool.UnlockReadFileMutex(location)
 		}
 	}
 
-	return nil, nil
+	return logs, nil
 }
 
-func getFileSearchLocations(logModel *LogModel) []string {
+func (logModel *LogModel) getFileSearchLocations() []string {
 	var logLevel, err = getLogLevelAsString(logModel.Type)
 	if err != nil {
 		return nil
@@ -110,6 +105,8 @@ func getFileSearchLocations(logModel *LogModel) []string {
 	} else {
 		paths = walkLogLevelPaths(logLevels)
 	}
+
+	return paths
 }
 
 func walkLogLevelPaths(logLevels []string) []string {
@@ -129,20 +126,36 @@ func walkLogLevelPaths(logLevels []string) []string {
 }
 
 func searchLog(location string, logModel *LogModel) []LogModel {
+	var foundLogs []LogModel
+	file, _ := os.Open(location)
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		fmt.Println(scanner.Text())
+		logLine := rawLogToModel(scanner.Text())
+		if logModel.Compare(logLine) {
+			foundLogs = append(foundLogs, *logLine)
+		}
+	}
 
 	return nil
 }
 
-/*
- *"DEBUG"
-"INFO"
-"WARN"
-"ERROR"
-"FATAL"
- *
-*/
+func rawLogToModel(rawLog string) *LogModel {
 
-func createLogLevelDirectory(logLevel int8) {
+	logTextIndicator := strings.Index(":", rawLog)
+	// Remove leading and trailing braces, removes the content of the log, and splits the details.
+	logProperties := strings.Split("]-[", rawLog[1:logTextIndicator-1])
+
+	var logModel *LogModel
+	logModel.CreatedDate, _ = time.Parse(logDateFormat, logProperties[0])
+	logModel.Location, _ = url.QueryUnescape(logProperties[1])
+	logModel.Severity, _ = strconv.Atoi(logProperties[2])
+	logModel.Message, _ = url.QueryUnescape(rawLog[logTextIndicator:])
+
+	return logModel
+}
+
+func createLogLevelDirectory(logLevel int) {
 	path, err := getLogLevelAsString(logLevel)
 	if err != nil {
 
@@ -152,8 +165,8 @@ func createLogLevelDirectory(logLevel int8) {
 	}
 }
 
-func getLogLevelAsString(logLevel int8) (string, error) {
-	var logLevels = make(map[int8]string)
+func getLogLevelAsString(logLevel int) (string, error) {
+	var logLevels = make(map[int]string)
 	logLevels[0] = "ALL"
 	logLevels[1] = "DEBUG"
 	logLevels[2] = "INFO"
@@ -168,16 +181,39 @@ func getLogLevelAsString(logLevel int8) (string, error) {
 	return logLevels[logLevel], nil
 }
 
-func getLogWriteLocation(message *LogModel) (string, error) {
-	logLevel, err := getLogLevelAsString(message.Type)
+func getLogWriteLocation(logModel *LogModel) (string, error) {
+	logLevel, err := getLogLevelAsString(logModel.Type)
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s/%s-%d.txt", logLevel, message.CreatedDate.Format(dateFormat), message.Severity), nil
+	return fmt.Sprintf("%s/%s-%d.txt", logLevel, time.Now().Format(resourceFileNameDateFormat), logModel.Severity), nil
 }
 
-func buildLogMessage(message *LogModel) []byte {
-	location := strings.ReplaceAll(message.Location, "\n", "%0A")
-	messageText := strings.ReplaceAll(message.Message, "\n", "%0A")
-	return []byte(fmt.Sprintf("[%s]-[%s]-[%d]: %s\n", message.CreatedDate.Format(dateFormat), location, message.Severity, messageText))
+func buildLogMessage(logModel *LogModel) []byte {
+	location := url.QueryEscape(logModel.Location)
+	messageText := url.QueryEscape(logModel.Message)
+	return []byte(fmt.Sprintf("[%s]-[%s]-[%d]:%s\n", time.Now().Format(logDateFormat), location, logModel.Severity, messageText))
+}
+
+// Compare compares the values between two log models: The receiver and the comparison.
+// If the two models are the same, true is returned. Otherwise, false.
+func (logModel *LogModel) Compare(comparison *LogModel) bool {
+
+	if !logModel.CreatedDate.IsZero() && logModel.CreatedDate != comparison.CreatedDate {
+		return false
+	}
+	if (logModel.Severity >= MinSeverity && logModel.Severity <= MaxSeverity) && logModel.Severity != comparison.Severity {
+		return false
+	}
+	if (logModel.Type >= MinLogLevel && logModel.Type <= MaxLogLevel) && logModel.Type != comparison.Type {
+		return false
+	}
+	if logModel.Message != "" && logModel.Message != comparison.Message {
+		return false
+	}
+	if logModel.Location != "" && logModel.Location != comparison.Location {
+		return false
+	}
+
+	return true
 }
