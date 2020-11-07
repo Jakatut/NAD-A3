@@ -14,16 +14,13 @@ func Setup(router *gin.Engine, mutexPool *core.FileMutexPool) {
 
 	router.LoadHTMLGlob("public/templates/*.tmpl.html")
 	router.Static("public/static", "static")
-	resources := []string{"/log/debug", "/log/warninig", "/log/info", "/log/error", "/log/fatal"}
 
-	for _, route := range resources {
-		router.GET(route, func(c *gin.Context) {
-			handlers.HandleLog(c, mutexPool)
-		})
-		router.POST(route, func(c *gin.Context) {
-			handlers.HandleLog(c, mutexPool)
-		})
-	}
+	router.GET("/log/:log_level", func(c *gin.Context) {
+		handlers.HandleLog(c, mutexPool)
+	})
+	router.POST("/log/:log_level", func(c *gin.Context) {
+		handlers.HandleLog(c, mutexPool)
+	})
 
 	router.Run(":8080")
 	// router.Run(":" + port)

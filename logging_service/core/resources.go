@@ -4,6 +4,9 @@ import (
 	"sync"
 )
 
+const LogDateFormat = "2006-01-02T15-04-05"
+const ResourceFileNameDateFormat = "2006-01-02"
+
 // Response defines an api request's response. This would be used for successful responses. Any responses that
 // indicate a failure or error should use errors.New("") for the response.
 type Response struct {
