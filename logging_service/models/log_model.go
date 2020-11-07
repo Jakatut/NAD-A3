@@ -82,13 +82,11 @@ func (logModel *LogModel) ReadLog(mutexPool *core.FileMutexPool) ([]LogModel, er
 
 	var logs []LogModel
 
-	if !logModel.CreatedDate.IsZero() {
-		logLocations := logModel.getFileSearchLocations()
-		for _, location := range logLocations {
-			mutexPool.LockReadFileMutex(location)
-			logs = append(logs, searchLog(location, logModel)...)
-			mutexPool.UnlockReadFileMutex(location)
-		}
+	logLocations := logModel.getFileSearchLocations()
+	for _, location := range logLocations {
+		mutexPool.LockReadFileMutex(location)
+		logs = append(logs, searchLog(location, logModel)...)
+		mutexPool.UnlockReadFileMutex(location)
 	}
 
 	return logs, nil
@@ -134,7 +132,7 @@ func searchLog(location string, logModel *LogModel) []LogModel {
 		fmt.Println(scanner.Text())
 		logLine := rawLogToModel(scanner.Text(), logModel.Type)
 		if logModel.CompareWithoutCreatedDate(logLine) {
-			if !logModel.FromTime.IsZero() && !logModel.ToTime.IsZero() && logModel.createdDateFallsWithinDateRange() {
+			if !logModel.FromTime.IsZero() && !logModel.ToTime.IsZero() && logLine.createdDateFallsWithinDateRange(logModel.FromTime, logModel.ToTime) {
 				foundLogs = append(foundLogs, *logLine)
 			} else if logModel.FromTime.IsZero() || logModel.FromTime.IsZero() || !logModel.CreatedDate.IsZero() {
 				foundLogs = append(foundLogs, *logLine)
@@ -231,10 +229,10 @@ func (logModel *LogModel) CompareWithoutCreatedDate(comparison *LogModel) bool {
 	return true
 }
 
-func (logModel *LogModel) createdDateFallsWithinDateRange() bool {
+func (logModel *LogModel) createdDateFallsWithinDateRange(fromTime time.Time, toTime time.Time) bool {
 
-	if !logModel.CreatedDate.IsZero() && !logModel.FromTime.IsZero() && !logModel.ToTime.IsZero() {
-		return logModel.CreatedDate.After(logModel.FromTime) && logModel.CreatedDate.Before(logModel.ToTime)
+	if !logModel.CreatedDate.IsZero() && !fromTime.IsZero() && !toTime.IsZero() {
+		return logModel.CreatedDate.After(fromTime) && logModel.CreatedDate.Before(toTime)
 	}
 
 	return false
