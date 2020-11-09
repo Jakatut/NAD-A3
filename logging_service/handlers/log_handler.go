@@ -1,37 +1,49 @@
 package handlers
 
 import (
-	"fmt"
+	"errors"
 	"logging_service/core"
 	models "logging_service/models"
+	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
-// HandleLog handles all post/get requests for any log type.
-func HandleLog(c *gin.Context, mutexPool *core.FileMutexPool) {
+// HandlePostLog handles all post requests for any log type.
+func HandlePostLog(c *gin.Context, mutexPool *core.FileMutexPool) {
 	logData, err := serializeLogFromRequest(c)
-	if handleError(c, err) {
+	if err != nil {
 		return
 	}
 
-	var method = c.Request.Method
-	result := new(core.Response)
-	switch method {
-	case "POST":
-		result, err = postRequestWorker(logData, mutexPool)
-	case "GET":
-		result, err = getRequestWorker(logData, mutexPool)
-	}
+	result, err := postRequestWorker(logData, mutexPool)
 
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
-	} else if result != nil {
+	} else if result.Data != nil {
 		c.JSON(200, result)
+	} else {
+		c.JSON(200, gin.H{"message": "success"})
 	}
+}
+
+// HandleGetLog handles all get requests for any log type.
+func HandleGetLog(c *gin.Context, mutexPool *core.FileMutexPool) {
+	logData, err := serializeLogFromRequest(c)
+	if err != nil {
+		return
+	}
+
+	result, err := getRequestWorker(logData, mutexPool)
+
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, result)
 }
 
 /*
@@ -47,7 +59,6 @@ func getRequestWorker(log *models.LogModel, mutexPool *core.FileMutexPool) (*cor
 	}
 
 	var response = new(core.Response)
-	response.Message = "success"
 	response.Data = readResult
 	return response, nil
 }
@@ -74,63 +85,50 @@ func serializeLogFromRequest(c *gin.Context) (*models.LogModel, error) {
 	method := c.Request.Method
 	logData := new(models.LogModel)
 
+	logLevel := strings.ToUpper(c.Param("log_level"))
+	if !validLogLevel(logLevel) {
+		return nil, errors.New("invalid log level")
+	}
+	logData.LogLevel = logLevel
+
 	switch method {
 	case "POST":
-		if err := c.BindJSON(logData); err != nil {
-			fmt.Println("Error binding to log from POST request.")
-		}
-	case "GET":
-		if err := validateRequestDateStrings(c); err != nil {
+		if err := c.ShouldBindJSON(logData); err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			if logLevel == "ALL" {
+				c.AbortWithStatusJSON(http.StatusBadRequest, "not implemented.")
+			}
 			return nil, err
 		}
-		if err := c.BindQuery(logData); err != nil {
-			fmt.Println("Erorr binding to log from GET request.")
+	case "GET":
+		if err := c.ShouldBindQuery(logData); err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
 			return nil, err
 		}
 		logData.Location, _ = url.QueryUnescape(logData.Location)
 		logData.Message, _ = url.QueryUnescape(logData.Message)
 	}
 
-	logData.LogLevel = strings.ToUpper(c.Param("log_level"))
-
 	return logData, nil
-}
-
-func validateRequestDateStrings(c *gin.Context) error {
-	var keys = []string{"created_date", "from", "to"}
-	for _, value := range keys {
-		err := validateRequestDateString(c, value)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func validateRequestDateString(c *gin.Context, key string) error {
-	date, exists := c.Get(key)
-	if exists {
-		if _, err := time.Parse(core.LogDateFormat, date.(string)); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func checkDateString(date string) bool {
-	if _, err := time.Parse(core.LogDateFormat, date); err != nil {
-		return false
-	}
-
-	return true
 }
 
 func handleError(c *gin.Context, err error) bool {
 	if err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		response := core.Response{Error: err.Error()}
+		c.JSON(400, response)
 		return true
 	}
+	return false
+}
+
+func validLogLevel(logLevel string) bool {
+	for _, value := range core.LogLevels {
+		if strings.Compare(strings.ToUpper(value), strings.ToUpper(logLevel)) == 0 {
+			return true
+		}
+	}
+
 	return false
 }
