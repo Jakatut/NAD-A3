@@ -14,12 +14,14 @@ import (
 
 // Log Types
 const (
-	ALL   = 0
-	DEBUG = 1
-	INFO  = 2
-	WARN  = 3
-	ERROR = 4
-	FATAL = 5
+	ALL        = 0
+	DEBUG      = 1
+	INFO       = 2
+	WARN       = 3
+	ERROR      = 4
+	FATAL      = 5
+	DayValues  = 1
+	TimeValues = 2
 )
 
 //json:"created_date,omitempty" form:"created_date,omitempty"
@@ -27,28 +29,27 @@ const (
 // LogModel defines the contents of a log
 type LogModel struct {
 	CreatedDate *time.Time `json:",omitempty" form:"created_date,omitempty" time_format:"2006-01-02T15:04:05Z"`
-	ID          *int       `json:",omitempty" form:"id,omitempty"`
+	CreatedDay  *time.Time `json:",omitempty" form:"created_day,omitempty" time_format:"2006-01-02"`
+	CreatedTime *time.Time `json:",omitempty" form:"created_time,omitempty" time_format:"15:04:05Z"`
+	ID          uint       `json:",omitempty" form:"id,omitempty"`
 	LogLevel    string     `json:"type,omitempty" form:"type,omitempty" validate:"DEBUG|WARNING|INFO|ERROR|FATAL"` // DEBUG, INFO, WARN, ERROR, FATAL, ALL
 	Message     string     `json:"message" form:"message,omitempty"`
 	Location    string     `json:"location,omitempty" form:"location,omitempty"`
-	FromDate    *time.Time `json:",omitempty" form:"from,omitempty" binding:"omitempty" time_format:"2006-01-02T15:04:05" binding:"required"`
-	ToDate      *time.Time `json:",omitempty" form:"to,omitempty" binding:"omitempty,gtfield=FromTime" time_format:"2006-01-02T15:04:05" binding:"required"`
+	FromDate    *time.Time `json:",omitempty" form:"from,omitempty" binding:"omitempty" time_format:"2006-01-02T15:04:05Z" binding:"required"`
+	ToDate      *time.Time `json:",omitempty" form:"to,omitempty" binding:"omitempty" time_format:"2006-01-02T15:04:05Z" binding:"required"`
+}
+
+// filter compares the values between two log models: The receiver and the comparison.
+// If the two models are the same, true is returned. Otherwise, false.
+func (logModel *LogModel) filter(comparison *LogModel) bool {
+	return logModel.compareCreatedDateValues(comparison) && logModel.filterWithoutCreatedDate(comparison)
 }
 
 // filterWithoutCreatedDate compares the values between two log models: The receiver and the comparison.
 // If the two models are the same, true is returned. Otherwise, false.
 func (logModel *LogModel) filterWithoutCreatedDate(comparison *LogModel) bool {
 
-	var logModelCreatedDate string
-	var comparisonCreatedDate string
-	if logModel.CreatedDate != nil {
-		logModelCreatedDate = logModel.CreatedDate.Format(core.LogDateFormat)
-	}
-	if comparison.CreatedDate != nil {
-		comparisonCreatedDate = comparison.CreatedDate.Format(core.LogDateFormat)
-	}
-
-	if (logModel.ID != nil && comparison.ID != nil) && *(logModel.ID) != *(comparison.ID) {
+	if (logModel.ID != 0 && comparison.ID != 0) && logModel.ID != comparison.ID {
 		return false
 	}
 	if (logModel.Message != "" && comparison.Message != "") && logModel.Message != comparison.Message {
@@ -57,37 +58,62 @@ func (logModel *LogModel) filterWithoutCreatedDate(comparison *LogModel) bool {
 	if (logModel.Location != "") && logModel.Location != comparison.Location {
 		return false
 	}
-	if (logModel.CreatedDate == nil || logModel.CreatedDate.IsZero()) && (logModel.FromDate != nil && logModel.ToDate != nil) && !logModel.FromDate.IsZero() && !logModel.ToDate.IsZero() {
-		if !comparison.createdDateFallsWithinDateRange(*logModel.FromDate, *logModel.ToDate) {
-			return false
-		}
-	}
-	if (logModel.CreatedDate != nil && !logModel.CreatedDate.IsZero()) && comparisonCreatedDate != logModelCreatedDate {
-		return false
-	}
 
 	return true
 }
 
-// filter compares the values between two log models: The receiver and the comparison.
-// If the two models are the same, true is returned. Otherwise, false.
-func (logModel *LogModel) filter(comparison *LogModel) bool {
-	if logModel.CreatedDate != nil && !logModel.CreatedDate.IsZero() {
-		var logModelCreatedDate = logModel.CreatedDate.Format(core.LogDateFormat)
-		var comparisonCreatedDate = comparison.CreatedDate.Format(core.LogDateFormat)
-		if logModelCreatedDate != comparisonCreatedDate {
-			return false
-		}
+func (logModel *LogModel) compareCreatedDateValues(comparison *LogModel) bool {
+	var createdDatePresent = logModel.CreatedDate != nil && !logModel.CreatedDate.IsZero()
+	var createdTimePresent = logModel.CreatedTime != nil && !logModel.CreatedTime.IsZero()
+	var createdDayPresent = logModel.CreatedDay != nil && !logModel.CreatedDay.IsZero()
+	var fromDatePresent = logModel.FromDate != nil && !logModel.FromDate.IsZero()
+	var toDatePresent = logModel.ToDate != nil && !logModel.ToDate.IsZero()
+
+	var logModelCreatedDate = ""
+	if logModel.CreatedDate != nil {
+		logModelCreatedDate = logModel.CreatedDate.Format(core.LogDateFormat)
+	}
+	var comparisonCreatedDate = ""
+	if comparison.CreatedDate != nil {
+		comparisonCreatedDate = comparison.CreatedDate.Format(core.LogDateFormat)
+	}
+	var logModelCreatedTime = ""
+	if logModel.CreatedTime != nil {
+		logModelCreatedTime = logModel.CreatedTime.Format(core.CreatedTimeFormat)
+	}
+	var comparisonCreatedTime = ""
+	if comparison.CreatedDate != nil {
+		comparisonCreatedTime = comparison.CreatedDate.Format(core.CreatedTimeFormat)
+	}
+	var logModelCreatedDay = ""
+	if logModel.CreatedDay != nil {
+		logModelCreatedDay = logModel.CreatedDay.Format(core.CreatedDayFormat)
+	}
+	var comparisonCreatedDay = ""
+	if comparison.CreatedDate != nil {
+		comparisonCreatedDay = comparison.CreatedDate.Format(core.CreatedDayFormat)
 	}
 
-	return logModel.filterWithoutCreatedDate(comparison)
+	if createdDatePresent && logModelCreatedDate == comparisonCreatedDate {
+		return true
+	}
+	if (createdTimePresent) && (logModelCreatedTime == comparisonCreatedTime) {
+		return true
+	}
+	if (createdDayPresent) && (logModelCreatedDay == comparisonCreatedDay) {
+		return true
+	}
+	if (fromDatePresent && toDatePresent) && comparison.createdDateFallsWithinDateRange(*logModel.FromDate, *logModel.ToDate) {
+		return true
+	}
+
+	return false
 }
 
 // createdDateFallsWithinDateRange checks if the created date of the reciever, falls within the provided date range.
 func (logModel *LogModel) createdDateFallsWithinDateRange(fromTime time.Time, toTime time.Time) bool {
-
 	if !logModel.CreatedDate.IsZero() && !fromTime.IsZero() && !toTime.IsZero() {
-		return logModel.CreatedDate.After(fromTime) && logModel.CreatedDate.Before(toTime)
+		return logModel.CreatedDate.After(fromTime.Add(-time.Second*1)) && logModel.CreatedDate.Before(toTime.Add(time.Second*1))
 	}
 
 	return false
@@ -95,8 +121,8 @@ func (logModel *LogModel) createdDateFallsWithinDateRange(fromTime time.Time, to
 
 // WriteLog writes a log to a logfile.
 func (logModel *LogModel) WriteLog(*core.FileMutexPool) error {
-	logLocation, err := getLogWriteLocation(logModel)
-	createLogLevelDirectory(logModel.LogLevel)
+	logLocation, err := core.GetLogWriteLocation(logModel.LogLevel)
+	core.CreateLogLevelDirectory(logModel.LogLevel)
 
 	file, err := os.OpenFile(logLocation, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -107,7 +133,7 @@ func (logModel *LogModel) WriteLog(*core.FileMutexPool) error {
 
 	bufferedWriter := bufio.NewWriter(file)
 	_, err = bufferedWriter.Write(
-		buildLogMessage(logModel),
+		logModel.buildLogMessage(),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -198,25 +224,15 @@ func rawLogToModel(rawLog string, logType string) *LogModel {
 	logModel.CreatedDate = createdDate
 	logModel.Location = logProperties[1]
 	id, _ := strconv.Atoi(logProperties[2])
-	logModel.ID = &id
+
+	logModel.ID = uint(id)
 	logModel.LogLevel = logType
 	logModel.Message = rawLog[logTextIndicator+2 : len(rawLog)-1]
 
 	return logModel
 }
 
-func createLogLevelDirectory(logLevel string) {
-	path := strings.ToUpper(logLevel)
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		os.MkdirAll(path, 0700)
-	}
-}
-
-func getLogWriteLocation(logModel *LogModel) (string, error) {
-	return fmt.Sprintf("%s/%s.txt", logModel.LogLevel, time.Now().Format(core.ResourceFileNameDateFormat)), nil
-}
-
-func buildLogMessage(logModel *LogModel) []byte {
+func (logModel *LogModel) buildLogMessage() []byte {
 	location := logModel.Location
 	messageText := strings.Replace(logModel.Message, "\n", "\\n", -1)
 	return []byte(fmt.Sprintf("[%s]-[%s]-[%d]:\"%s\"\n", time.Now().Format(core.LogDateFormat), location, logModel.ID, messageText))

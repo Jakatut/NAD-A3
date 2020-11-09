@@ -7,7 +7,8 @@ import (
 // LogDateFormat used when writing content to log files. Includes time.
 const LogDateFormat = "2006-01-02T15-04-05"
 
-const IncomingLogDateFormat = "2006-01-02T15:04:05"
+const CreatedDayFormat = "2006-01-02"
+const CreatedTimeFormat = "15-04-05"
 
 // ResourceFileNameDateFormat used in the file name when creating log files
 const ResourceFileNameDateFormat = "2006-01-02"

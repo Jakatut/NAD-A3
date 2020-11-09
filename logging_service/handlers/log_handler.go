@@ -8,6 +8,11 @@ import (
 	"net/url"
 	"strings"
 
+	ut "github.com/go-playground/universal-translator"
+
+	"github.com/go-playground/locales/en"
+	"github.com/go-playground/validator/v10"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -94,17 +99,15 @@ func serializeLogFromRequest(c *gin.Context) (*models.LogModel, error) {
 	switch method {
 	case "POST":
 		if err := c.ShouldBindJSON(logData); err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			if logLevel == "ALL" {
 				c.AbortWithStatusJSON(http.StatusBadRequest, "not implemented.")
 			}
+			handleError(c, err)
 			return nil, err
 		}
 	case "GET":
 		if err := c.ShouldBindQuery(logData); err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-				"error": err.Error(),
-			})
+			handleError(c, err)
 			return nil, err
 		}
 		logData.Location, _ = url.QueryUnescape(logData.Location)
@@ -116,9 +119,16 @@ func serializeLogFromRequest(c *gin.Context) (*models.LogModel, error) {
 
 func handleError(c *gin.Context, err error) bool {
 	if err != nil {
-		response := core.Response{Error: err.Error()}
-		c.JSON(400, response)
-		return true
+		en := en.New()
+		uni := ut.New(en, en)
+		trans, _ := uni.GetTranslator("en")
+		// response := core.Response{}
+		ve, ok := err.(validator.ValidationErrors)
+		if ok {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"Error": ve.Translate(trans)})
+			return true
+		}
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"Error": err})
 	}
 	return false
 }
