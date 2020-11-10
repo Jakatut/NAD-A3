@@ -12,5 +12,6 @@ func main() {
 	os.Setenv("TZ", "UTC")
 	router := gin.New()
 	var pool core.FileMutexPool
-	routes.Setup(router, &pool)
+	var counters core.LogTypeCounter
+	routes.Setup(router, &pool, &counters)
 }

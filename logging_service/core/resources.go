@@ -78,3 +78,37 @@ func (fmp *FileMutexPool) UnlockWirterFileMutex(fileName string) {
 		fmp.Pool[fileName].Unlock()
 	}
 }
+
+type LogTypeCounter struct {
+	Counters map[string]int
+	Lock     sync.RWMutex
+}
+
+func (ltc *LogTypeCounter) AddCount(logType string) {
+	if ltc.Counters == nil {
+		ltc.Counters = make(map[string]int)
+	}
+	ltc.Lock.RLock()
+	if _, ok := ltc.Counters[logType]; ok {
+		ltc.Lock.RUnlock()
+		ltc.Lock.Lock()
+		defer ltc.Lock.Unlock()
+		ltc.Counters[logType] = ltc.Counters[logType] + 1
+	} else {
+		ltc.Lock.RUnlock()
+	}
+}
+
+func (ltc *LogTypeCounter) GetCount(logType string) int {
+	if ltc.Counters == nil {
+		ltc.Counters = make(map[string]int)
+		return 0
+	}
+	ltc.Lock.RLock()
+	defer ltc.Lock.RUnlock()
+	if value, ok := ltc.Counters[logType]; ok {
+		return value
+	}
+
+	return 0
+}

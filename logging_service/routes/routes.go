@@ -14,7 +14,7 @@ import (
 )
 
 // Setup create routes with their handlers.
-func Setup(router *gin.Engine, mutexPool *core.FileMutexPool) {
+func Setup(router *gin.Engine, mutexPool *core.FileMutexPool, counters *core.LogTypeCounter) {
 	// port := os.Getenv("PORT")
 	router.Use(gin.Logger())
 
@@ -31,11 +31,11 @@ func Setup(router *gin.Engine, mutexPool *core.FileMutexPool) {
 	}
 
 	router.GET("/log/:log_level", func(c *gin.Context) {
-		handlers.HandleGetLog(c, mutexPool)
+		handlers.HandleGetLog(c, mutexPool, counters)
 	})
 	router.POST("/log/:log_level", func(c *gin.Context) {
 
-		handlers.HandlePostLog(c, mutexPool)
+		handlers.HandlePostLog(c, mutexPool, counters)
 	})
 
 	router.Run(":8080")

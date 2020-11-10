@@ -14,14 +14,12 @@ import (
 
 // Log Types
 const (
-	ALL        = 0
-	DEBUG      = 1
-	INFO       = 2
-	WARN       = 3
-	ERROR      = 4
-	FATAL      = 5
-	DayValues  = 1
-	TimeValues = 2
+	ALL   = 0
+	DEBUG = 1
+	INFO  = 2
+	WARN  = 3
+	ERROR = 4
+	FATAL = 5
 )
 
 //json:"created_date,omitempty" form:"created_date,omitempty"
@@ -49,10 +47,10 @@ func (logModel *LogModel) filter(comparison *LogModel) bool {
 // If the two models are the same, true is returned. Otherwise, false.
 func (logModel *LogModel) filterWithoutCreatedDate(comparison *LogModel) bool {
 
-	if (logModel.ID != 0 && comparison.ID != 0) && logModel.ID != comparison.ID {
+	if (logModel.ID != 0) && logModel.ID != comparison.ID {
 		return false
 	}
-	if (logModel.Message != "" && comparison.Message != "") && logModel.Message != comparison.Message {
+	if (logModel.Message != "") && logModel.Message != comparison.Message {
 		return false
 	}
 	if (logModel.Location != "") && logModel.Location != comparison.Location {
@@ -68,6 +66,15 @@ func (logModel *LogModel) compareCreatedDateValues(comparison *LogModel) bool {
 	var createdDayPresent = logModel.CreatedDay != nil && !logModel.CreatedDay.IsZero()
 	var fromDatePresent = logModel.FromDate != nil && !logModel.FromDate.IsZero()
 	var toDatePresent = logModel.ToDate != nil && !logModel.ToDate.IsZero()
+
+	if !createdDatePresent &&
+		!createdTimePresent &&
+		!createdDayPresent &&
+		!fromDatePresent &&
+		!toDatePresent {
+
+		return true
+	}
 
 	var logModelCreatedDate = ""
 	if logModel.CreatedDate != nil {
@@ -120,10 +127,11 @@ func (logModel *LogModel) createdDateFallsWithinDateRange(fromTime time.Time, to
 }
 
 // WriteLog writes a log to a logfile.
-func (logModel *LogModel) WriteLog(*core.FileMutexPool) error {
+func (logModel *LogModel) WriteLog(mutexPool *core.FileMutexPool) error {
 	logLocation, err := core.GetLogWriteLocation(logModel.LogLevel)
 	core.CreateLogLevelDirectory(logModel.LogLevel)
 
+	mutexPool.LockWriteFileMutex(logLocation)
 	file, err := os.OpenFile(logLocation, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Fatal(err)
@@ -140,6 +148,7 @@ func (logModel *LogModel) WriteLog(*core.FileMutexPool) error {
 		return err
 	}
 	bufferedWriter.Flush()
+	mutexPool.UnlockWirterFileMutex(logLocation)
 
 	return nil
 }
@@ -212,7 +221,6 @@ func searchLog(location string, logModel *LogModel) []LogModel {
 }
 
 func rawLogToModel(rawLog string, logType string) *LogModel {
-
 	logTextIndicator := strings.Index(rawLog, ":")
 	// Remove leading and trailing braces, removes the content of the log, and splits the details.
 	logProperties := strings.Split(rawLog[1:logTextIndicator-1], "]-[")
@@ -222,7 +230,7 @@ func rawLogToModel(rawLog string, logType string) *LogModel {
 
 	var logModel = new(LogModel)
 	logModel.CreatedDate = createdDate
-	logModel.Location = logProperties[1]
+	logModel.Location = strings.Replace(logProperties[1], "\\-", ":", -1)
 	id, _ := strconv.Atoi(logProperties[2])
 
 	logModel.ID = uint(id)
@@ -233,7 +241,7 @@ func rawLogToModel(rawLog string, logType string) *LogModel {
 }
 
 func (logModel *LogModel) buildLogMessage() []byte {
-	location := logModel.Location
+	location := strings.Replace(logModel.Location, ":", "\\-", -1)
 	messageText := strings.Replace(logModel.Message, "\n", "\\n", -1)
 	return []byte(fmt.Sprintf("[%s]-[%s]-[%d]:\"%s\"\n", time.Now().Format(core.LogDateFormat), location, logModel.ID, messageText))
 }

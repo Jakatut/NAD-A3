@@ -17,13 +17,13 @@ import (
 )
 
 // HandlePostLog handles all post requests for any log type.
-func HandlePostLog(c *gin.Context, mutexPool *core.FileMutexPool) {
+func HandlePostLog(c *gin.Context, mutexPool *core.FileMutexPool, counters *core.LogTypeCounter) {
 	logData, err := serializeLogFromRequest(c)
 	if err != nil {
 		return
 	}
 
-	result, err := postRequestWorker(logData, mutexPool)
+	result, err := postRequestWorker(logData, mutexPool, counters)
 
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
@@ -35,7 +35,7 @@ func HandlePostLog(c *gin.Context, mutexPool *core.FileMutexPool) {
 }
 
 // HandleGetLog handles all get requests for any log type.
-func HandleGetLog(c *gin.Context, mutexPool *core.FileMutexPool) {
+func HandleGetLog(c *gin.Context, mutexPool *core.FileMutexPool, counters *core.LogTypeCounter) {
 	logData, err := serializeLogFromRequest(c)
 	if err != nil {
 		return
@@ -68,9 +68,9 @@ func getRequestWorker(log *models.LogModel, mutexPool *core.FileMutexPool) (*cor
 	return response, nil
 }
 
-func postRequestWorker(logModel *models.LogModel, mutexPool *core.FileMutexPool) (*core.Response, error) {
+func postRequestWorker(logModel *models.LogModel, mutexPool *core.FileMutexPool, counters *core.LogTypeCounter) (*core.Response, error) {
 
-	if err := logModel.WriteLog(mutexPool); err != nil {
+	if err := logModel.WriteLog(mutexPool, counters); err != nil {
 		return nil, err
 	}
 
