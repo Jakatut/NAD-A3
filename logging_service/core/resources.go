@@ -80,13 +80,14 @@ func (fmp *FileMutexPool) UnlockWirterFileMutex(fileName string) {
 }
 
 type LogTypeCounter struct {
-	Counters map[string]int
+	Counters map[string]uint
 	Lock     sync.RWMutex
 }
 
-func (ltc *LogTypeCounter) AddCount(logType string) {
+func (ltc *LogTypeCounter) AddCount(logType string) uint {
+
 	if ltc.Counters == nil {
-		ltc.Counters = make(map[string]int)
+		ltc.Counters = make(map[string]uint)
 	}
 	ltc.Lock.RLock()
 	if _, ok := ltc.Counters[logType]; ok {
@@ -96,12 +97,17 @@ func (ltc *LogTypeCounter) AddCount(logType string) {
 		ltc.Counters[logType] = ltc.Counters[logType] + 1
 	} else {
 		ltc.Lock.RUnlock()
+		ltc.Lock.Lock()
+		defer ltc.Lock.Unlock()
+		ltc.Counters[logType] = 1
 	}
+
+	return ltc.Counters[logType]
 }
 
-func (ltc *LogTypeCounter) GetCount(logType string) int {
+func (ltc *LogTypeCounter) GetCount(logType string) uint {
 	if ltc.Counters == nil {
-		ltc.Counters = make(map[string]int)
+		ltc.Counters = make(map[string]uint)
 		return 0
 	}
 	ltc.Lock.RLock()
@@ -111,4 +117,22 @@ func (ltc *LogTypeCounter) GetCount(logType string) int {
 	}
 
 	return 0
+}
+
+func (ltc *LogTypeCounter) SubtractCount(logType string) uint {
+
+	if ltc.Counters == nil {
+		ltc.Counters = make(map[string]uint)
+	}
+	ltc.Lock.RLock()
+	if _, ok := ltc.Counters[logType]; ok {
+		ltc.Lock.RUnlock()
+		ltc.Lock.Lock()
+		defer ltc.Lock.Unlock()
+		ltc.Counters[logType] = ltc.Counters[logType] - 1
+	} else {
+		defer ltc.Lock.RUnlock()
+	}
+
+	return ltc.Counters[logType]
 }

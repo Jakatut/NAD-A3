@@ -17,3 +17,13 @@ func CreateLogLevelDirectory(logLevel string) {
 func GetLogWriteLocation(logLevel string) (string, error) {
 	return fmt.Sprintf("%s/%s.txt", logLevel, time.Now().Format(ResourceFileNameDateFormat)), nil
 }
+
+func IsValidLogLevel(logLevel string) bool {
+	for _, value := range LogLevels {
+		if strings.Compare(strings.ToUpper(value), strings.ToUpper(logLevel)) == 0 {
+			return true
+		}
+	}
+
+	return false
+}

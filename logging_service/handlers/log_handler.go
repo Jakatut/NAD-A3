@@ -35,7 +35,7 @@ func HandlePostLog(c *gin.Context, mutexPool *core.FileMutexPool, counters *core
 }
 
 // HandleGetLog handles all get requests for any log type.
-func HandleGetLog(c *gin.Context, mutexPool *core.FileMutexPool, counters *core.LogTypeCounter) {
+func HandleGetLog(c *gin.Context, mutexPool *core.FileMutexPool) {
 	logData, err := serializeLogFromRequest(c)
 	if err != nil {
 		return
@@ -70,7 +70,8 @@ func getRequestWorker(log *models.LogModel, mutexPool *core.FileMutexPool) (*cor
 
 func postRequestWorker(logModel *models.LogModel, mutexPool *core.FileMutexPool, counters *core.LogTypeCounter) (*core.Response, error) {
 
-	if err := logModel.WriteLog(mutexPool, counters); err != nil {
+	logModel.ID = counters.AddCount(logModel.LogLevel)
+	if err := logModel.WriteLog(mutexPool); err != nil {
 		return nil, err
 	}
 
@@ -91,7 +92,7 @@ func serializeLogFromRequest(c *gin.Context) (*models.LogModel, error) {
 	logData := new(models.LogModel)
 
 	logLevel := strings.ToUpper(c.Param("log_level"))
-	if !validLogLevel(logLevel) {
+	if !core.IsValidLogLevel(logLevel) {
 		return nil, errors.New("invalid log level")
 	}
 	logData.LogLevel = logLevel
@@ -130,15 +131,5 @@ func handleError(c *gin.Context, err error) bool {
 		}
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"Error": err})
 	}
-	return false
-}
-
-func validLogLevel(logLevel string) bool {
-	for _, value := range core.LogLevels {
-		if strings.Compare(strings.ToUpper(value), strings.ToUpper(logLevel)) == 0 {
-			return true
-		}
-	}
-
 	return false
 }
