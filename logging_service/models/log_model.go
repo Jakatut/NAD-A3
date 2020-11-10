@@ -6,7 +6,6 @@ import (
 	"log"
 	"logging_service/core"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -177,27 +176,11 @@ func (logModel *LogModel) ReadLog(mutexPool *core.FileMutexPool) ([]LogModel, er
 // getSearchFilePaths get a list of file paths for the files that need to be searched.
 func getSearchFilePaths(logLevel string) []string {
 	var paths []string
+	var logLevels = append(core.LogLevels, "All")
 	if logLevel != "ALL" {
-		paths = getLogLevelPaths([]string{logLevel})
+		paths = core.GetLogLevelPaths([]string{logLevel})
 	} else {
-		paths = getLogLevelPaths(core.LogLevels)
-	}
-
-	return paths
-}
-
-// getLogLevelPaths goes through the list of log levels, and finds the path of every log in that level's directory.
-func getLogLevelPaths(logLevels []string) []string {
-	var paths []string
-	for _, level := range logLevels {
-		err := filepath.Walk(""+level+"/", func(path string, info os.FileInfo, err error) error {
-			paths = append(paths, path)
-			return nil
-		})
-		if err != nil {
-			log.Fatal(err)
-			return nil
-		}
+		paths = core.GetLogLevelPaths(logLevels)
 	}
 
 	return paths
@@ -211,7 +194,7 @@ func searchLog(location string, logModel *LogModel) []LogModel {
 	for scanner.Scan() {
 		fmt.Println(scanner.Text())
 		logLine := rawLogToModel(scanner.Text(), logModel.LogLevel)
-		if logModel.filter(logLine) {
+		if logLine != nil && logModel.filter(logLine) {
 			logLine.Message = strings.Replace(logLine.Message, "\\n", "\n", -1)
 			foundLogs = append(foundLogs, *logLine)
 		}
@@ -221,6 +204,12 @@ func searchLog(location string, logModel *LogModel) []LogModel {
 }
 
 func rawLogToModel(rawLog string, logType string) *LogModel {
+	var logModel = new(LogModel)
+
+	if rawLog == "" || strings.Index(rawLog, "") == -1 {
+		return nil
+	}
+
 	logTextIndicator := strings.Index(rawLog, ":")
 	// Remove leading and trailing braces, removes the content of the log, and splits the details.
 	logProperties := strings.Split(rawLog[1:logTextIndicator-1], "]-[")
@@ -228,7 +217,6 @@ func rawLogToModel(rawLog string, logType string) *LogModel {
 	createdDate := new(time.Time)
 	*createdDate, _ = time.Parse(core.LogDateFormat, logProperties[0])
 
-	var logModel = new(LogModel)
 	logModel.CreatedDate = createdDate
 	logModel.Location = strings.Replace(logProperties[1], "\\-", ":", -1)
 	id, _ := strconv.Atoi(logProperties[2])

@@ -8,10 +8,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+var pool *core.FileMutexPool
+var counters *core.LogTypeCounter
+var router *gin.Engine
+
+func init() {
+	router = gin.Default()
+	pool = new(core.FileMutexPool)
+	counters = new(core.LogTypeCounter)
+	counters.SetStartingCounts()
+}
+
 func main() {
 	os.Setenv("TZ", "UTC")
-	router := gin.New()
-	var pool core.FileMutexPool
-	var counters core.LogTypeCounter
-	routes.Setup(router, &pool, &counters)
+	routes.Setup(router, pool, counters)
 }

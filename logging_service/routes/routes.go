@@ -3,15 +3,15 @@ package routes
 import (
 	"logging_service/core"
 	"logging_service/handlers"
+	"logging_service/security"
 
 	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
 	en_translations "github.com/go-playground/validator/v10/translations/en"
-
-	"github.com/gin-gonic/gin"
 )
 
 // Setup create routes with their handlers.
@@ -21,9 +21,12 @@ func Setup(router *gin.Engine, mutexPool *core.FileMutexPool, counters *core.Log
 		gin.Logger(),
 		cors.New(cors.Config{
 			AllowMethods:     []string{"POST", "GET"},
-			AllowHeaders:     []string{"Content-Type", "Origin", "Accept", "*"},
+			AllowHeaders:     []string{"Content-Type", "Origin", "Accept", "Authorization", "*"},
 			ExposeHeaders:    []string{"Content-Length"},
 			AllowCredentials: true,
+			AllowOriginFunc: func(origin string) bool {
+				return true
+			},
 		}),
 	)
 
@@ -39,10 +42,10 @@ func Setup(router *gin.Engine, mutexPool *core.FileMutexPool, counters *core.Log
 		registerTranslations(v, &trans, core.ErrorTranslations)
 	}
 
-	router.GET("/log/:log_level", func(c *gin.Context) {
+	router.GET("/log/:log_level", security.CheckJWT(), func(c *gin.Context) {
 		handlers.HandleGetLog(c, mutexPool)
 	})
-	router.POST("/log/:log_level", func(c *gin.Context) {
+	router.POST("/log/:log_level", security.CheckJWT(), func(c *gin.Context) {
 
 		handlers.HandlePostLog(c, mutexPool, counters)
 	})

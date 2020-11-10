@@ -14,7 +14,7 @@ const CreatedTimeFormat = "15-04-05"
 const ResourceFileNameDateFormat = "2006-01-02"
 
 // LogLevels defines all available log level types.
-var LogLevels = []string{"ALL", "DEBUG", "INFO", "WARNING", "ERROR", "FATAL"}
+var LogLevels = []string{"DEBUG", "INFO", "WARNING", "ERROR", "FATAL"}
 
 var ErrorTranslations = map[string]string{"": ""}
 
@@ -79,11 +79,13 @@ func (fmp *FileMutexPool) UnlockWirterFileMutex(fileName string) {
 	}
 }
 
+// LogTypeCounter keeps track of log counts.
 type LogTypeCounter struct {
 	Counters map[string]uint
 	Lock     sync.RWMutex
 }
 
+// AddCount adds 1 to the count for logType.
 func (ltc *LogTypeCounter) AddCount(logType string) uint {
 
 	if ltc.Counters == nil {
@@ -105,6 +107,7 @@ func (ltc *LogTypeCounter) AddCount(logType string) uint {
 	return ltc.Counters[logType]
 }
 
+// GetCount returns the current log count for logType.
 func (ltc *LogTypeCounter) GetCount(logType string) uint {
 	if ltc.Counters == nil {
 		ltc.Counters = make(map[string]uint)
@@ -119,6 +122,7 @@ func (ltc *LogTypeCounter) GetCount(logType string) uint {
 	return 0
 }
 
+// SubtractCount removes 1 from the log types value in the counters map.
 func (ltc *LogTypeCounter) SubtractCount(logType string) uint {
 
 	if ltc.Counters == nil {
@@ -135,4 +139,27 @@ func (ltc *LogTypeCounter) SubtractCount(logType string) uint {
 	}
 
 	return ltc.Counters[logType]
+}
+
+func (ltc *LogTypeCounter) resetCounts() {
+	for _, logLevel := range LogLevels {
+		ltc.Counters[logLevel] = 1
+	}
+}
+
+// SetStartingCounts sets the log type counters values to either 1 or to the last count.
+func (ltc *LogTypeCounter) SetStartingCounts() {
+
+	if ltc.Counters == nil {
+		ltc.Counters = make(map[string]uint)
+	}
+	for _, logLevel := range LogLevels {
+		location, err := GetLastLogFileLocation(logLevel)
+		if err != nil {
+			ltc.Counters[logLevel] = 1
+		} else {
+			// ltc.Counters[logLevel] =
+			GetLastLogId(location)
+		}
+	}
 }
