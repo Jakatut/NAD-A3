@@ -2,10 +2,12 @@ package models
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"log"
 	"logging_service/core"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -28,12 +30,61 @@ type LogModel struct {
 	CreatedDate *time.Time `json:",omitempty" form:"created_date,omitempty" time_format:"2006-01-02T15:04:05Z"`
 	CreatedDay  *time.Time `json:",omitempty" form:"created_day,omitempty" time_format:"2006-01-02"`
 	CreatedTime *time.Time `json:",omitempty" form:"created_time,omitempty" time_format:"15:04:05Z"`
-	ID          uint       `json:",omitempty" form:"id,omitempty"`
+	ID          uint       `json:"id,omitempty" form:"id,omitempty"`
 	LogLevel    string     `json:"type,omitempty" form:"type,omitempty" validate:"DEBUG|WARNING|INFO|ERROR|FATAL"` // DEBUG, INFO, WARN, ERROR, FATAL, ALL
 	Message     string     `json:"message" form:"message,omitempty"`
 	Location    string     `json:"location,omitempty" form:"location,omitempty"`
 	FromDate    *time.Time `json:",omitempty" form:"from,omitempty" binding:"omitempty" time_format:"2006-01-02T15:04:05Z" binding:"required"`
 	ToDate      *time.Time `json:",omitempty" form:"to,omitempty" binding:"omitempty" time_format:"2006-01-02T15:04:05Z" binding:"required"`
+}
+
+// WriteLog writes a log to a logfile.
+func (logModel *LogModel) WriteLog(mutexPool *core.FileMutexPool) error {
+	logLocation, err := core.GetLogWriteLocation(logModel.LogLevel)
+	if err != nil {
+		return err
+	}
+	core.CreateLogLevelDirectory(logModel.LogLevel)
+
+	mutexPool.LockWriteFileMutex(logLocation)
+	file, err := os.OpenFile(logLocation, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+	defer file.Close()
+
+	bufferedWriter := bufio.NewWriter(file)
+	_, err = bufferedWriter.Write(
+		logModel.buildLogMessage(),
+	)
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+	bufferedWriter.Flush()
+	mutexPool.UnlockWirterFileMutex(logLocation)
+
+	return nil
+}
+
+// ReadLog reads a log from the log file.
+func (logModel *LogModel) ReadLog(mutexPool *core.FileMutexPool) ([]LogModel, error) {
+
+	var logs = []LogModel{}
+
+	logLocations := core.GetSearchFilePaths(logModel.LogLevel)
+	for _, location := range logLocations {
+		mutexPool.LockReadFileMutex(location)
+		foundLogs, err := searchLog(location, logModel)
+		if err != nil {
+			return nil, err
+		}
+		logs = append(logs, foundLogs...)
+		mutexPool.UnlockReadFileMutex(location)
+	}
+
+	return logs, nil
 }
 
 // filter compares the values between two log models: The receiver and the comparison.
@@ -125,111 +176,75 @@ func (logModel *LogModel) createdDateFallsWithinDateRange(fromTime time.Time, to
 	return false
 }
 
-// WriteLog writes a log to a logfile.
-func (logModel *LogModel) WriteLog(mutexPool *core.FileMutexPool) error {
-	logLocation, err := core.GetLogWriteLocation(logModel.LogLevel)
-	core.CreateLogLevelDirectory(logModel.LogLevel)
-
-	mutexPool.LockWriteFileMutex(logLocation)
-	file, err := os.OpenFile(logLocation, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Fatal(err)
-		return err
-	}
-	defer file.Close()
-
-	bufferedWriter := bufio.NewWriter(file)
-	_, err = bufferedWriter.Write(
-		logModel.buildLogMessage(),
-	)
-	if err != nil {
-		log.Fatal(err)
-		return err
-	}
-	bufferedWriter.Flush()
-	mutexPool.UnlockWirterFileMutex(logLocation)
-
-	return nil
-}
-
-// ReadLog reads a log from the log file.
-func (logModel *LogModel) ReadLog(mutexPool *core.FileMutexPool) ([]LogModel, error) {
-
-	var logs = []LogModel{}
-
-	logLocations := getSearchFilePaths(logModel.LogLevel)
-	for _, location := range logLocations {
-		mutexPool.LockReadFileMutex(location)
-		logs = append(logs, searchLog(location, logModel)...)
-		mutexPool.UnlockReadFileMutex(location)
-	}
-
-	return logs, nil
-}
-
 /*
  *
  * Helpers
  *
  */
 
-// getSearchFilePaths get a list of file paths for the files that need to be searched.
-func getSearchFilePaths(logLevel string) []string {
-	var paths []string
-	var logLevels = append(core.LogLevels, "All")
-	if logLevel != "ALL" {
-		paths = core.GetLogLevelPaths([]string{logLevel})
-	} else {
-		paths = core.GetLogLevelPaths(logLevels)
-	}
-
-	return paths
-}
-
 // search log
-func searchLog(location string, logModel *LogModel) []LogModel {
+func searchLog(location string, logModel *LogModel) ([]LogModel, error) {
 	var foundLogs []LogModel
-	file, _ := os.Open(location)
+	file, err := os.Open(location)
+	if err != nil {
+		return foundLogs, err
+	}
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		fmt.Println(scanner.Text())
-		logLine := rawLogToModel(scanner.Text(), logModel.LogLevel)
+		logLine, err := rawLogToModel(scanner.Text(), logModel.LogLevel)
+		if err != nil {
+			return foundLogs, err
+		}
 		if logLine != nil && logModel.filter(logLine) {
 			logLine.Message = strings.Replace(logLine.Message, "\\n", "\n", -1)
 			foundLogs = append(foundLogs, *logLine)
 		}
 	}
 
-	return foundLogs
+	return foundLogs, nil
 }
 
-func rawLogToModel(rawLog string, logType string) *LogModel {
+func rawLogToModel(rawLog string, logType string) (*LogModel, error) {
 	var logModel = new(LogModel)
 
-	if rawLog == "" || strings.Index(rawLog, "") == -1 {
-		return nil
+	regex, _ := regexp.Compile("\\w+\\s*=\\s*")
+	// Only find the first 3 keys.
+	foundKeys := regex.FindAllString(rawLog, 3)
+
+	// Validate the keys.
+	for _, value := range foundKeys {
+		if value != "date=" && value != "id=" && value != "location=" {
+			return nil, errors.New("unknown property")
+		}
 	}
 
-	logTextIndicator := strings.Index(rawLog, ":")
-	// Remove leading and trailing braces, removes the content of the log, and splits the details.
-	logProperties := strings.Split(rawLog[1:logTextIndicator-1], "]-[")
+	dateIndex := strings.Index(rawLog, foundKeys[0])
+	idIndex := strings.Index(rawLog, foundKeys[1]) + len(foundKeys[1])
+	locationIndex := strings.Index(rawLog, foundKeys[2]) + len(foundKeys[2])
 
-	createdDate := new(time.Time)
-	*createdDate, _ = time.Parse(core.LogDateFormat, logProperties[0])
+	var err error
+	*logModel.CreatedDate, err = time.Parse(rawLog[dateIndex+len(foundKeys[0]):idIndex-2], core.LogDateFormat)
+	if err != nil {
+		return nil, err
+	}
 
-	logModel.CreatedDate = createdDate
-	logModel.Location = strings.Replace(logProperties[1], "\\-", ":", -1)
-	id, _ := strconv.Atoi(logProperties[2])
-
+	id, err := strconv.ParseUint(rawLog[idIndex+len(foundKeys[1]):locationIndex-2], 0, 64)
+	if err != nil {
+		return nil, err
+	}
 	logModel.ID = uint(id)
-	logModel.LogLevel = logType
-	logModel.Message = rawLog[logTextIndicator+2 : len(rawLog)-1]
 
-	return logModel
+	strippedLog := strings.Replace(rawLog[locationIndex+len(foundKeys[2]):], "\\\"", "", -1)
+	locationEndIndex := strings.Index(strippedLog, "\"]:")
+	location := rawLog[locationIndex+len(foundKeys[2]) : locationEndIndex]
+	logModel.Location = strings.Replace(location, "\\\"", "\"", -1)
+
+	return logModel, nil
 }
 
 func (logModel *LogModel) buildLogMessage() []byte {
-	location := strings.Replace(logModel.Location, ":", "\\-", -1)
 	messageText := strings.Replace(logModel.Message, "\n", "\\n", -1)
-	return []byte(fmt.Sprintf("[%s]-[%s]-[%d]:\"%s\"\n", time.Now().Format(core.LogDateFormat), location, logModel.ID, messageText))
+	location := strings.Replace(logModel.Location, "\"", "\\\"", -1)
+	return []byte(fmt.Sprintf("[date=\"%s\"  id=\"%d\" location=\"%s\"]:\"%s\"\n", time.Now().Format(core.LogDateFormat), logModel.ID, location, messageText))
 }

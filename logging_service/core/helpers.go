@@ -91,3 +91,16 @@ func GetLogLevelPaths(logLevels []string) []string {
 
 	return paths
 }
+
+// GetSearchFilePaths get a list of file paths for the files that need to be searched.
+func GetSearchFilePaths(logLevel string) []string {
+	var paths []string
+	var logLevels = append(LogLevels, "All")
+	if logLevel != "ALL" {
+		paths = GetLogLevelPaths([]string{logLevel})
+	} else {
+		paths = GetLogLevelPaths(logLevels)
+	}
+
+	return paths
+}

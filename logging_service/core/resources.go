@@ -16,8 +16,6 @@ const ResourceFileNameDateFormat = "2006-01-02"
 // LogLevels defines all available log level types.
 var LogLevels = []string{"DEBUG", "INFO", "WARNING", "ERROR", "FATAL"}
 
-var ErrorTranslations = map[string]string{"": ""}
-
 // Response defines an api request's response. This would be used for successful responses. Any responses that
 // indicate a failure or error should use errors.New("") for the response.
 type Response struct {
@@ -130,10 +128,13 @@ func (ltc *LogTypeCounter) SubtractCount(logType string) uint {
 	}
 	ltc.Lock.RLock()
 	if _, ok := ltc.Counters[logType]; ok {
+		var greaterThanOne = ltc.Counters[logType] > 1
 		ltc.Lock.RUnlock()
 		ltc.Lock.Lock()
 		defer ltc.Lock.Unlock()
-		ltc.Counters[logType] = ltc.Counters[logType] - 1
+		if greaterThanOne {
+			ltc.Counters[logType] = ltc.Counters[logType] - 1
+		}
 	} else {
 		defer ltc.Lock.RUnlock()
 	}
@@ -143,7 +144,7 @@ func (ltc *LogTypeCounter) SubtractCount(logType string) uint {
 
 func (ltc *LogTypeCounter) resetCounts() {
 	for _, logLevel := range LogLevels {
-		ltc.Counters[logLevel] = 1
+		ltc.Counters[logLevel] = 0
 	}
 }
 
@@ -156,7 +157,7 @@ func (ltc *LogTypeCounter) SetStartingCounts() {
 	for _, logLevel := range LogLevels {
 		location, err := GetLastLogFileLocation(logLevel)
 		if err != nil {
-			ltc.Counters[logLevel] = 1
+			ltc.Counters[logLevel] = 0
 		} else {
 			// ltc.Counters[logLevel] =
 			GetLastLogId(location)

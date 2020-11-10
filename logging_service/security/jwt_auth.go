@@ -1,6 +1,8 @@
 package security
 
 import (
+	"os"
+
 	jwtmiddleware "github.com/auth0/go-jwt-middleware"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
@@ -8,7 +10,7 @@ import (
 
 var authMiddlware = jwtmiddleware.New(jwtmiddleware.Options{
 	ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
-		return []byte("<auth0 client secret>"), nil
+		return []byte(os.Getenv("AUTH0_CLIENT_SECRET")), nil
 	},
 	SigningMethod: jwt.SigningMethodHS256,
 })

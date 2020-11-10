@@ -7,16 +7,12 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
-	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
-	en_translations "github.com/go-playground/validator/v10/translations/en"
 )
 
 // Setup create routes with their handlers.
 func Setup(router *gin.Engine, mutexPool *core.FileMutexPool, counters *core.LogTypeCounter) {
-	// port := os.Getenv("PORT")
 	router.Use(
 		gin.Logger(),
 		cors.New(cors.Config{
@@ -32,16 +28,6 @@ func Setup(router *gin.Engine, mutexPool *core.FileMutexPool, counters *core.Log
 
 	router.LoadHTMLGlob("public/templates/*.tmpl.html")
 	router.Static("public/static", "static")
-
-	en := en.New()
-	uni := ut.New(en, en)
-	trans, _ := uni.GetTranslator("en")
-
-	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
-		en_translations.RegisterDefaultTranslations(v, trans)
-		registerTranslations(v, &trans, core.ErrorTranslations)
-	}
-
 	router.GET("/log/:log_level", security.CheckJWT(), func(c *gin.Context) {
 		handlers.HandleGetLog(c, mutexPool)
 	})
@@ -50,8 +36,8 @@ func Setup(router *gin.Engine, mutexPool *core.FileMutexPool, counters *core.Log
 		handlers.HandlePostLog(c, mutexPool, counters)
 	})
 
+	// port := os.Getenv("PORT")
 	router.Run(":8080")
-	// router.Run(":" + port)
 }
 
 func registerTranslations(validate *validator.Validate, trans *ut.Translator, translations map[string]string) {
