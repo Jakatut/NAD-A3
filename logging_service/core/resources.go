@@ -42,10 +42,14 @@ type FileMutexPool struct {
 // AddMutex adds a new mutex to the pool map with the key fileName
 // If the key already exists, nothing happens.
 func (fmp *FileMutexPool) addMutex(fileName string) {
-	if fmp.Pool == nil {
-		fmp.Pool = make(map[string]*sync.RWMutex)
-	}
 	fmp.Lock.RLock()
+	if fmp.Pool == nil {
+		fmp.Lock.RUnlock()
+		fmp.Lock.Lock()
+		fmp.Pool = make(map[string]*sync.RWMutex)
+		fmp.Lock.Unlock()
+		fmp.Lock.RLock()
+	}
 	if _, ok := fmp.Pool[fileName]; !ok {
 		fmp.Lock.RUnlock()
 		fmp.Lock.Lock()
@@ -95,10 +99,14 @@ type LogTypeCounter struct {
 // AddCount adds 1 to the count for logType.
 func (ltc *LogTypeCounter) AddCount(logType string) uint {
 
-	if ltc.Counters == nil {
-		ltc.Counters = make(map[string]uint)
-	}
 	ltc.Lock.RLock()
+	if ltc.Counters == nil {
+		ltc.Lock.RUnlock()
+		ltc.Lock.Lock()
+		ltc.Counters = make(map[string]uint)
+		ltc.Lock.Unlock()
+		ltc.Lock.RLock()
+	}
 	if _, ok := ltc.Counters[logType]; ok {
 		ltc.Lock.RUnlock()
 		ltc.Lock.Lock()
