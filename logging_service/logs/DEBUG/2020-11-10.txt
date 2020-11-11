@@ -1,5 +1,0 @@
-[date="2020-11-10T23-47-18Z"  id="1" location="/usr/local"]:"Hello!\n"
-[date="2020-11-10T23-47-26Z"  id="2" location="/usr/local"]:"Hello!\n"
-[date="2020-11-10T23-47-28Z"  id="3" location="/usr/local"]:"Hello!\n"
-[date="2020-11-10T23-47-29Z"  id="4" location="/usr/local"]:"Hello!\n"
-[date="2020-11-10T23-47-37Z"  id="1" location="/usr/local"]:"Hello!\n"

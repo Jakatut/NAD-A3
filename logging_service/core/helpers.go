@@ -22,9 +22,9 @@ func CreateLogLevelDirectory(logLevel string) {
 
 // GetLogWriteLocation finds the location of current log file to send logs to for the provided logLevel.
 func GetLogWriteLocation(logLevel string) (string, error) {
-	location := fmt.Sprintf("logs/%s/%s.txt", logLevel, time.Now().Format(ResourceFileNameDateFormat))
-	dir := "logs/" + logLevel
-	_, err := os.Stat("logs/" + logLevel + "/")
+	dir := strings.ToUpper("logs/" + logLevel)
+	location := strings.ToUpper(dir+"/"+time.Now().Format(ResourceFileNameDateFormat)) + ".txt"
+	_, err := os.Stat(dir)
 	if os.IsNotExist(err) {
 		os.MkdirAll(dir, 0700)
 	}

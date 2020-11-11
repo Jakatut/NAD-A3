@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"log"
 	"logging_service/core"
 	models "logging_service/models"
@@ -10,13 +9,12 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"gopkg.in/bluesuncorp/validator.v5"
 )
 
 // HandlePostLog handles all post requests for any log type.
 func HandlePostLog(c *gin.Context, mutexPool *core.FileMutexPool, counters *core.LogTypeCounter) {
 	logData, err := serializeLogFromRequest(c)
-	if err != nil {
+	if err != nil || logData == nil {
 		return
 	}
 
@@ -24,6 +22,7 @@ func HandlePostLog(c *gin.Context, mutexPool *core.FileMutexPool, counters *core
 
 	if err != nil || result == nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		log.Fatal(err)
 	} else {
 		c.JSON(200, result)
 	}
@@ -32,7 +31,7 @@ func HandlePostLog(c *gin.Context, mutexPool *core.FileMutexPool, counters *core
 // HandleGetLog handles all get requests for any log type.
 func HandleGetLog(c *gin.Context, mutexPool *core.FileMutexPool) {
 	logData, err := serializeLogFromRequest(c)
-	if err != nil {
+	if err != nil || logData == nil {
 		return
 	}
 
@@ -91,69 +90,40 @@ func serializeLogFromRequest(c *gin.Context) (*models.LogModel, error) {
 	logLevel := strings.ToUpper(c.Param("log_level"))
 	if !core.IsValidLogLevel(logLevel) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, "invalid log level.")
+		return nil, nil
 	}
 	logData.LogLevel = logLevel
 
 	switch method {
 	case "POST":
+
 		if logLevel == "ALL" {
-			c.AbortWithStatusJSON(http.StatusNotFound, "Not found.")
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"Message": "Not found."})
+			return nil, nil
 		}
 		if err := c.ShouldBindJSON(logData); err != nil {
+			if err.Error() == "EOF" {
+				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"Errors": "Missing payload"})
+			}
 			c.AbortWithStatusJSON(http.StatusBadRequest, err)
+			return nil, nil
 		}
 	case "GET":
 		if err := c.ShouldBindQuery(logData); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, err)
+			return nil, nil
 		}
 		logData.Location, _ = url.QueryUnescape(logData.Location)
 		logData.Message, _ = url.QueryUnescape(logData.Message)
 	}
 
-	checkErrors(c)
+	// checkErrors(c)
+
+	missing, empty := logData.IsEmptyCreate()
+	if empty {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"Errors": missing})
+		return nil, nil
+	}
 
 	return logData, nil
-}
-
-func ValidationErrorToText(e *validator.FieldError) string {
-	switch e.Tag {
-	case "required":
-		return fmt.Sprintf("%s is required", e.Field)
-	case "max":
-		return fmt.Sprintf("%s cannot be longer than %s", e.Field, e.Param)
-	case "min":
-		return fmt.Sprintf("%s must be longer than %s", e.Field, e.Param)
-	case "email":
-		return fmt.Sprintf("Invalid email format")
-	case "len":
-		return fmt.Sprintf("%s must be %s characters long", e.Field, e.Param)
-	}
-	return fmt.Sprintf("%s is not valid", e.Field)
-}
-
-func checkErrors(c *gin.Context) {
-	if len(c.Errors) > 0 {
-		status := http.StatusBadRequest
-		errors := make([]map[string]string, 10)
-		for _, e := range c.Errors {
-			switch e.Type {
-			case gin.ErrorTypeBind:
-				errs := e.Err.(*validator.StructErrors)
-				list := make(map[string]string)
-				for field, err := range errs.Errors {
-					list[field] = ValidationErrorToText(err)
-				}
-				errors = append(errors, list)
-			}
-			// Make sure we maintain the preset response status
-
-			if c.Writer.Status() != http.StatusOK {
-				status = c.Writer.Status()
-			}
-		}
-
-		if len(errors) > 0 {
-			c.AbortWithStatusJSON(status, gin.H{"Errors": errors})
-		}
-	}
 }

@@ -30,7 +30,7 @@ type LogModel struct {
 	ID          uint       `json:"id,omitempty" form:"id,omitempty"`
 	LogLevel    string     `json:"type,omitempty" form:"type,omitempty" validate:"DEBUG|WARNING|INFO|ERROR|FATAL"` // DEBUG, INFO, WARN, ERROR, FATAL, ALL
 	Message     string     `json:"message" form:"message,omitempty"`
-	Location    string     `json:"location,omitempty" form:"location,omitempty"`
+	Location    string     `json:"location" form:"location,omitempty"`
 	FromDate    *time.Time `json:",omitempty" form:"from,omitempty" binding:"omitempty" time_format:"2006-01-02T15:04:05Z" binding:"required"`
 	ToDate      *time.Time `json:",omitempty" form:"to,omitempty" binding:"omitempty" time_format:"2006-01-02T15:04:05Z" binding:"required"`
 }
@@ -84,23 +84,43 @@ func (logModel *LogModel) ReadLog(mutexPool *core.FileMutexPool) ([]LogModel, er
 	return logs, nil
 }
 
+// IsEmptyCreate checks that the struct is not nil, and that the message and location are not empty.
+// If any of these are true, ture is returned.
+func (logModel *LogModel) IsEmptyCreate() ([]string, bool) {
+	errors := []string{"missing field: message", "missing field: location"}
+	if logModel == nil {
+		return errors, true
+	}
+
+	missingFields := []string{}
+
+	if logModel.Message == "" {
+		missingFields = append(missingFields, errors[0])
+	}
+	if logModel.Location == "" {
+		missingFields = append(missingFields, errors[1])
+	}
+
+	return missingFields, len(missingFields) > 0
+}
+
 // filter compares the values between two log models: The receiver and the comparison.
 // If the two models are the same, true is returned. Otherwise, false.
 func (logModel *LogModel) filter(comparison *LogModel) bool {
-	return logModel.compareCreatedDateValues(comparison) || logModel.filterWithoutCreatedDate(comparison)
+	return logModel.compareCreatedDateValues(comparison) && logModel.filterWithoutCreatedDate(comparison)
 }
 
 // filterWithoutCreatedDate compares the values between two log models: The receiver and the comparison.
 // If the two models are the same, true is returned. Otherwise, false.
 func (logModel *LogModel) filterWithoutCreatedDate(comparison *LogModel) bool {
 
-	if logModel.ID != comparison.ID {
+	if logModel.ID != 0 && logModel.ID != comparison.ID {
 		return false
 	}
-	if (logModel.Message != "") && logModel.Message != comparison.Message {
+	if logModel.Message != "" && logModel.Message != comparison.Message {
 		return false
 	}
-	if (logModel.Location != "") && logModel.Location != comparison.Location {
+	if logModel.Location != "" && logModel.Location != comparison.Location {
 		return false
 	}
 
