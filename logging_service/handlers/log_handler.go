@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"fmt"
+	"log"
 	"logging_service/core"
 	models "logging_service/models"
 	"net/http"
@@ -8,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"gopkg.in/bluesuncorp/validator.v5"
 )
 
 // HandlePostLog handles all post requests for any log type.
@@ -37,6 +40,7 @@ func HandleGetLog(c *gin.Context, mutexPool *core.FileMutexPool) {
 
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		log.Fatal(err)
 	}
 
 	if logData != nil && len(result.Data.([]models.LogModel)) < 0 {
@@ -103,11 +107,56 @@ func serializeLogFromRequest(c *gin.Context) (*models.LogModel, error) {
 		}
 	case "GET":
 		if err := c.ShouldBindQuery(logData); err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, err)
+
 		}
 		logData.Location, _ = url.QueryUnescape(logData.Location)
 		logData.Message, _ = url.QueryUnescape(logData.Message)
 	}
 
+	checkErrors(c)
+
 	return logData, nil
+}
+
+func ValidationErrorToText(e *validator.FieldError) string {
+	switch e.Tag {
+	case "required":
+		return fmt.Sprintf("%s is required", e.Field)
+	case "max":
+		return fmt.Sprintf("%s cannot be longer than %s", e.Field, e.Param)
+	case "min":
+		return fmt.Sprintf("%s must be longer than %s", e.Field, e.Param)
+	case "email":
+		return fmt.Sprintf("Invalid email format")
+	case "len":
+		return fmt.Sprintf("%s must be %s characters long", e.Field, e.Param)
+	}
+	return fmt.Sprintf("%s is not valid", e.Field)
+}
+
+func checkErrors(c *gin.Context) {
+	if len(c.Errors) > 0 {
+		status := http.StatusBadRequest
+		errors := make([]map[string]string, 10)
+		for _, e := range c.Errors {
+			switch e.Type {
+			case gin.ErrorTypeBind:
+				errs := e.Err.(*validator.StructErrors)
+				list := make(map[string]string)
+				for field, err := range errs.Errors {
+					list[field] = ValidationErrorToText(err)
+				}
+				errors = append(errors, list)
+			}
+			// Make sure we maintain the preset response status
+
+			if c.Writer.Status() != http.StatusOK {
+				status = c.Writer.Status()
+			}
+		}
+
+		if len(errors) > 0 {
+			c.AbortWithStatusJSON(status, gin.H{"Errors": errors})
+		}
+	}
 }

@@ -188,7 +188,6 @@ func searchLog(location string, logModel *LogModel) ([]LogModel, error) {
 	}
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		fmt.Println(scanner.Text())
 		logLine, err := rawLogToModel(scanner.Text(), logModel.LogLevel)
 		if err != nil {
 			return foundLogs, err
@@ -209,16 +208,19 @@ func rawLogToModel(rawLog string, logType string) (*LogModel, error) {
 		return nil, err
 	}
 
-	logModel.CreatedDate = (details["created_date"]).(*time.Time)
-	logModel.ID = (details["id"]).(uint)
+	logModel.CreatedDate = new(time.Time)
+	*logModel.CreatedDate = (details["created_date"]).(time.Time)
+	logModel.ID = uint((details["id"]).(uint64))
 	logModel.Location = (details["location"]).(string)
 	logModel.Message = (details["message"]).(string)
+	logModel.LogLevel = logType
 
 	return logModel, nil
 }
 
 func (logModel *LogModel) buildLogMessage() []byte {
 	messageText := strings.Replace(logModel.Message, "\n", "\\n", -1)
+	messageText = strings.Replace(messageText, "\"", "\\\"", -1)
 	location := strings.Replace(logModel.Location, "\"", "\\\"", -1)
 	return []byte(fmt.Sprintf("[date=\"%s\"  id=\"%d\" location=\"%s\"]:\"%s\"\n", time.Now().Format(core.LogDateFormat), logModel.ID, location, messageText))
 }

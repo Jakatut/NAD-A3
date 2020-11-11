@@ -27,6 +27,12 @@ type Response struct {
 	Error   string      `json:"error,omitempty"`
 }
 
+// Error designed an api's error response.
+type Error struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
 // FileMutexPool is a map of strings to Read Write mutexes used to control concurrent access to log files.
 type FileMutexPool struct {
 	Pool map[string]*sync.RWMutex

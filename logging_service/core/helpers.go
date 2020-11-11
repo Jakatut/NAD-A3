@@ -12,6 +12,7 @@ import (
 	"time"
 )
 
+// CreateLogLevelDirectory creates the directory for storing logs for the level logLevel
 func CreateLogLevelDirectory(logLevel string) {
 	path := strings.ToUpper("logs/" + logLevel)
 	if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -19,6 +20,7 @@ func CreateLogLevelDirectory(logLevel string) {
 	}
 }
 
+// GetLogWriteLocation finds the location of current log file to send logs to for the provided logLevel.
 func GetLogWriteLocation(logLevel string) (string, error) {
 	location := fmt.Sprintf("logs/%s/%s.txt", logLevel, time.Now().Format(ResourceFileNameDateFormat))
 	dir := "logs/" + logLevel
@@ -43,6 +45,7 @@ func GetLastLogFileLocation(logLevel string) (string, error) {
 	return paths[len(paths)-1], nil
 }
 
+// IsValidLogLevel check the provided logLevel is one of "DEBUG", "WARNING", "ERROR", "FATAL", "INFO", or "ALL"
 func IsValidLogLevel(logLevel string) bool {
 	for _, value := range LogLevels {
 		if strings.Compare(strings.ToUpper(value), strings.ToUpper(logLevel)) == 0 || strings.Compare(strings.ToUpper(value), "ALL") == 0 {
@@ -145,7 +148,8 @@ func GetLogDetailsFromRawLog(rawLog string, logType string) (map[string]interfac
 	location = strings.TrimLeft(location, "\"")
 	location = strings.Replace(location, "\\\"", "\"", -1)
 
-	message := rawLog[locationEndIndex+2:]
+	message := rawLog[locationEndIndex+3:]
+	message = strings.Trim(message, "\"")
 	message = strings.Replace(message, "\\\"", "\"", -1)
 
 	details := make(map[string]interface{})
