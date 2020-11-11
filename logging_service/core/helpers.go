@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -20,25 +21,26 @@ func CreateLogLevelDirectory(logLevel string) {
 
 func GetLogWriteLocation(logLevel string) (string, error) {
 	location := fmt.Sprintf("logs/%s/%s.txt", logLevel, time.Now().Format(ResourceFileNameDateFormat))
-	_, err := os.Stat(location)
+	dir := "logs/" + logLevel
+	_, err := os.Stat("logs/" + logLevel + "/")
 	if os.IsNotExist(err) {
-		return "", err
+		os.MkdirAll(dir, 0700)
 	}
-
+	_, err = os.Stat(location)
+	if os.IsNotExist(err) {
+		os.Create(location)
+	}
 	return location, nil
 }
 
+// GetLastLogFileLocation gets the last log in the given log level's directory.
 func GetLastLogFileLocation(logLevel string) (string, error) {
 	var paths = GetLogLevelPaths([]string{logLevel})
 	if len(paths) == 0 {
 		return "", errors.New("Does not exist")
 	}
 
-	for _, value := range paths {
-		fmt.Println(value)
-	}
-
-	return "", nil
+	return paths[len(paths)-1], nil
 }
 
 func IsValidLogLevel(logLevel string) bool {
@@ -51,7 +53,8 @@ func IsValidLogLevel(logLevel string) bool {
 	return false
 }
 
-func GetLastLogId(location string) uint {
+// GetLastLogID find the last log under the given log level, and returns that plus 1.
+func GetLastLogID(location string, logLevel string) uint {
 	file, err := os.Open(location)
 	if err != nil {
 		fmt.Print(err)
@@ -66,15 +69,12 @@ func GetLastLogId(location string) uint {
 		return 1
 	}
 
-	logTextIndicator := strings.Index(rawLog, ":")
-	// Remove leading and trailing braces, removes the content of the log, and splits the details.
-	logProperties := strings.Split(rawLog[1:logTextIndicator-1], "]-[")
-	id, err := strconv.Atoi(logProperties[2])
+	details, err := GetLogDetailsFromRawLog(rawLog, logLevel)
 	if err != nil {
 		return 1
 	}
 
-	return uint(id)
+	return uint(details["id"].(uint64))
 }
 
 // GetLogLevelPaths goes through the list of log levels, and finds the path of every log in that level's directory.
@@ -103,4 +103,56 @@ func GetSearchFilePaths(logLevel string) []string {
 	}
 
 	return paths
+}
+
+// GetLogDetailsFromRawLog extracts the dat, id, location, and message of a raw log.
+func GetLogDetailsFromRawLog(rawLog string, logType string) (map[string]interface{}, error) {
+
+	regex, _ := regexp.Compile("\\w+\\s*=\\s*")
+	// Only find the first 3 keys.
+	foundKeys := regex.FindAllString(rawLog, 3)
+
+	// Validate the keys.
+	for _, value := range foundKeys {
+		if value != "date=" && value != "id=" && value != "location=" {
+			return nil, errors.New("unknown property")
+		}
+	}
+
+	dateIndex := strings.Index(rawLog, foundKeys[0])
+	idIndex := strings.Index(rawLog, foundKeys[1]) + len(foundKeys[1])
+	locationIndex := strings.Index(rawLog, foundKeys[2]) + len(foundKeys[2])
+
+	dateString := rawLog[dateIndex+len(foundKeys[0]) : idIndex-len("date=")]
+	dateString = strings.Trim(dateString, "\"")
+	createdDate, err := time.Parse(LogDateFormat, dateString)
+	if err != nil {
+		return nil, err
+	}
+
+	idString := rawLog[idIndex+1 : locationIndex-len("location=")-2]
+	idString = strings.Trim(idString, "\"")
+	id, err := strconv.ParseUint(idString, 0, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	location := rawLog[locationIndex:]
+	numberOfEscapedQuotes := strings.Count(location, "\\\"")
+	location = strings.Replace(location, "\\\"", "", -1)
+	locationEndIndex := strings.Index(location, "\"]:") + numberOfEscapedQuotes + len(rawLog[0:locationIndex-1]) + 1
+	location = rawLog[locationIndex:locationEndIndex]
+	location = strings.TrimLeft(location, "\"")
+	location = strings.Replace(location, "\\\"", "\"", -1)
+
+	message := rawLog[locationEndIndex+2:]
+	message = strings.Replace(message, "\\\"", "\"", -1)
+
+	details := make(map[string]interface{})
+	details["created_date"] = createdDate
+	details["id"] = id
+	details["location"] = location
+	details["message"] = message
+
+	return details, nil
 }

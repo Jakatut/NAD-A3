@@ -5,9 +5,12 @@ import (
 )
 
 // LogDateFormat used when writing content to log files. Includes time.
-const LogDateFormat = "2006-01-02T15-04-05"
+const LogDateFormat = "2006-01-02T15-04-05Z"
 
+// CreatedDayFormat used when extracting or fomratting to year-month-day
 const CreatedDayFormat = "2006-01-02"
+
+// CreatedTimeFormat used when extracting or formatting to hour-minute-second
 const CreatedTimeFormat = "15-04-05"
 
 // ResourceFileNameDateFormat used in the file name when creating log files
@@ -159,8 +162,7 @@ func (ltc *LogTypeCounter) SetStartingCounts() {
 		if err != nil {
 			ltc.Counters[logLevel] = 0
 		} else {
-			// ltc.Counters[logLevel] =
-			GetLastLogId(location)
+			ltc.Counters[logLevel] = GetLastLogID(location, logLevel)
 		}
 	}
 }

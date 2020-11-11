@@ -2,13 +2,10 @@ package models
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"log"
 	"logging_service/core"
 	"os"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -206,39 +203,16 @@ func searchLog(location string, logModel *LogModel) ([]LogModel, error) {
 }
 
 func rawLogToModel(rawLog string, logType string) (*LogModel, error) {
-	var logModel = new(LogModel)
-
-	regex, _ := regexp.Compile("\\w+\\s*=\\s*")
-	// Only find the first 3 keys.
-	foundKeys := regex.FindAllString(rawLog, 3)
-
-	// Validate the keys.
-	for _, value := range foundKeys {
-		if value != "date=" && value != "id=" && value != "location=" {
-			return nil, errors.New("unknown property")
-		}
-	}
-
-	dateIndex := strings.Index(rawLog, foundKeys[0])
-	idIndex := strings.Index(rawLog, foundKeys[1]) + len(foundKeys[1])
-	locationIndex := strings.Index(rawLog, foundKeys[2]) + len(foundKeys[2])
-
-	var err error
-	*logModel.CreatedDate, err = time.Parse(rawLog[dateIndex+len(foundKeys[0]):idIndex-2], core.LogDateFormat)
+	logModel := new(LogModel)
+	details, err := core.GetLogDetailsFromRawLog(rawLog, logType)
 	if err != nil {
 		return nil, err
 	}
 
-	id, err := strconv.ParseUint(rawLog[idIndex+len(foundKeys[1]):locationIndex-2], 0, 64)
-	if err != nil {
-		return nil, err
-	}
-	logModel.ID = uint(id)
-
-	strippedLog := strings.Replace(rawLog[locationIndex+len(foundKeys[2]):], "\\\"", "", -1)
-	locationEndIndex := strings.Index(strippedLog, "\"]:")
-	location := rawLog[locationIndex+len(foundKeys[2]) : locationEndIndex]
-	logModel.Location = strings.Replace(location, "\\\"", "\"", -1)
+	logModel.CreatedDate = (details["created_date"]).(*time.Time)
+	logModel.ID = (details["id"]).(uint)
+	logModel.Location = (details["location"]).(string)
+	logModel.Message = (details["message"]).(string)
 
 	return logModel, nil
 }
