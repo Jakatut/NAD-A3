@@ -104,8 +104,12 @@ func serializeLogFromRequest(c *gin.Context) (*models.LogModel, error) {
 		if err := c.ShouldBindJSON(logData); err != nil {
 			if err.Error() == "EOF" {
 				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"Errors": "Missing payload"})
+			} else if missing, empty := logData.IsEmptyCreate(); empty {
+				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"Errors": missing})
+				return nil, nil
+			} else {
+				c.AbortWithStatusJSON(http.StatusBadRequest, err)
 			}
-			c.AbortWithStatusJSON(http.StatusBadRequest, err)
 			return nil, nil
 		}
 	case "GET":
@@ -115,14 +119,6 @@ func serializeLogFromRequest(c *gin.Context) (*models.LogModel, error) {
 		}
 		logData.Location, _ = url.QueryUnescape(logData.Location)
 		logData.Message, _ = url.QueryUnescape(logData.Message)
-	}
-
-	// checkErrors(c)
-
-	missing, empty := logData.IsEmptyCreate()
-	if empty {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"Errors": missing})
-		return nil, nil
 	}
 
 	return logData, nil

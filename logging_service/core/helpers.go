@@ -84,8 +84,9 @@ func GetLastLogID(location string, logLevel string) uint {
 func GetLogLevelPaths(logLevels []string) []string {
 	var paths []string
 	for _, level := range logLevels {
-		_ = filepath.Walk("logs/"+level+"/", func(path string, info os.FileInfo, err error) error {
-			if path != "logs/"+level+"/" {
+		dir := strings.ToUpper("logs/" + level + "/")
+		_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+			if path != dir {
 				paths = append(paths, path)
 			}
 			return nil
