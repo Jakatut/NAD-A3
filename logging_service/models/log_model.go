@@ -87,14 +87,14 @@ func (logModel *LogModel) ReadLog(mutexPool *core.FileMutexPool) ([]LogModel, er
 // filter compares the values between two log models: The receiver and the comparison.
 // If the two models are the same, true is returned. Otherwise, false.
 func (logModel *LogModel) filter(comparison *LogModel) bool {
-	return logModel.compareCreatedDateValues(comparison) && logModel.filterWithoutCreatedDate(comparison)
+	return logModel.compareCreatedDateValues(comparison) || logModel.filterWithoutCreatedDate(comparison)
 }
 
 // filterWithoutCreatedDate compares the values between two log models: The receiver and the comparison.
 // If the two models are the same, true is returned. Otherwise, false.
 func (logModel *LogModel) filterWithoutCreatedDate(comparison *LogModel) bool {
 
-	if (logModel.ID != 0) && logModel.ID != comparison.ID {
+	if logModel.ID != comparison.ID {
 		return false
 	}
 	if (logModel.Message != "") && logModel.Message != comparison.Message {

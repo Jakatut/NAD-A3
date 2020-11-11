@@ -22,11 +22,11 @@ func HandlePostLog(c *gin.Context, mutexPool *core.FileMutexPool, counters *core
 
 	result, err := postRequestWorker(logData, mutexPool, counters)
 
-	if err != nil {
+	if err != nil || result == nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+	} else {
+		c.JSON(200, result)
 	}
-
-	c.JSON(200, result)
 }
 
 // HandleGetLog handles all get requests for any log type.
@@ -41,14 +41,11 @@ func HandleGetLog(c *gin.Context, mutexPool *core.FileMutexPool) {
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		log.Fatal(err)
-	}
-
-	if logData != nil && len(result.Data.([]models.LogModel)) < 0 {
+	} else if result != nil && len(result.Data.([]models.LogModel)) < 1 {
 		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "not found"})
-
+	} else {
+		c.JSON(200, result)
 	}
-
-	c.JSON(200, result)
 }
 
 /*
@@ -107,7 +104,7 @@ func serializeLogFromRequest(c *gin.Context) (*models.LogModel, error) {
 		}
 	case "GET":
 		if err := c.ShouldBindQuery(logData); err != nil {
-
+			c.AbortWithStatusJSON(http.StatusBadRequest, err)
 		}
 		logData.Location, _ = url.QueryUnescape(logData.Location)
 		logData.Message, _ = url.QueryUnescape(logData.Message)
