@@ -3,7 +3,6 @@ package routes
 import (
 	"logging_service/core"
 	"logging_service/handlers"
-
 	"logging_service/security"
 
 	"github.com/gin-contrib/cors"
@@ -27,10 +26,13 @@ func Setup(router *gin.Engine, mutexPool *core.FileMutexPool, counters *core.Log
 
 	router.LoadHTMLGlob("public/templates/*.tmpl.html")
 	router.Static("public/static", "static")
-	router.GET("/log/:log_level", security.CheckJWT(), func(c *gin.Context) {
+
+	authorized := router.Group("/")
+	authorized.Use(security.AuthenticateJWT())
+	authorized.GET("/log/:log_level", func(c *gin.Context) {
 		handlers.HandleGetLog(c, mutexPool)
 	})
-	router.POST("/log/:log_level", security.CheckJWT(), func(c *gin.Context) {
+	authorized.POST("/log/:log_level", func(c *gin.Context) {
 
 		handlers.HandlePostLog(c, mutexPool, counters)
 	})

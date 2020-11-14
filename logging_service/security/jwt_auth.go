@@ -1,29 +1,33 @@
 package security
 
 import (
-	"fmt"
-	"os"
+	"log"
+	"net/http"
 
-	jwtmiddleware "github.com/auth0/go-jwt-middleware"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/auth0-community/go-auth0"
 	"github.com/gin-gonic/gin"
+	"gopkg.in/square/go-jose.v2"
 )
 
-var authMiddlware = jwtmiddleware.New(jwtmiddleware.Options{
-	ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
-		return []byte(os.Getenv("nc0vdSwXl6Hpa5LH3MBUCA3P7idMorZK")), nil
-	},
-	SigningMethod: jwt.SigningMethodHS256,
-})
-
-// CheckJWT checks the Authorization headers contains a valid Auth0 JWT.
-func CheckJWT() gin.HandlerFunc {
+func AuthenticateJWT() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		jwtMiddleware := *authMiddlware
-		if err := jwtMiddleware.CheckJWT(c.Writer, c.Request); err != nil {
-			c.AbortWithStatus(401)
-		} else {
-			fmt.Println("hello")
+
+		client := auth0.NewJWKClient(auth0.JWKClientOptions{URI: "https://ca-logging.us.auth0.com/" + ".well-known/jwks.json"}, nil)
+		configuration := auth0.NewConfiguration(client, []string{"http://localhost:8000"}, "https://ca-logging.us.auth0.com/", jose.RS256)
+		validator := auth0.NewValidator(configuration, nil)
+
+		_, err := validator.ValidateRequest(c.Request)
+
+		if err != nil {
+			log.Println(err)
+			terminateWithError(http.StatusUnauthorized, "token is not valid", c)
+			return
 		}
+		c.Next()
 	}
+}
+
+func terminateWithError(statusCode int, message string, c *gin.Context) {
+	c.JSON(statusCode, gin.H{"error": message})
+	c.Abort()
 }
