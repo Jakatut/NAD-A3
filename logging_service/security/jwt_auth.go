@@ -3,17 +3,22 @@ package security
 import (
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/auth0-community/go-auth0"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/square/go-jose.v2"
 )
 
+// AuthenticateJWT is a gin middleware that authenticates a jwt in the Authorization header before proceeding with processing a request.
 func AuthenticateJWT() gin.HandlerFunc {
+	auth0URI := os.Getenv("AUTH0_URI")
+	auth0Audience := os.Getenv("AUTH0_AUDIENCE")
+
 	return func(c *gin.Context) {
 
-		client := auth0.NewJWKClient(auth0.JWKClientOptions{URI: "https://ca-logging.us.auth0.com/" + ".well-known/jwks.json"}, nil)
-		configuration := auth0.NewConfiguration(client, []string{"http://localhost:8000"}, "https://ca-logging.us.auth0.com/", jose.RS256)
+		client := auth0.NewJWKClient(auth0.JWKClientOptions{URI: auth0URI + ".well-known/jwks.json"}, nil)
+		configuration := auth0.NewConfiguration(client, []string{auth0Audience}, auth0URI, jose.RS256)
 		validator := auth0.NewValidator(configuration, nil)
 
 		_, err := validator.ValidateRequest(c.Request)
