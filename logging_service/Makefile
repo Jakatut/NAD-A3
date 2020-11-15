@@ -8,6 +8,7 @@ $(DOCKER_CMD): clean
 	
 export AUTH0_URI=https://ca-logging.us.auth0.com/
 export AUTH0_AUDIENCE=http://localhost:8000
+export PORT=8080
 
 build:
 	go build -o bin/logging_service -v .
