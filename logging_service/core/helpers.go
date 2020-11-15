@@ -1,5 +1,14 @@
 package core
 
+/*
+ *
+ * file: 		helpers.go
+ * project:		logging_service - NAD-A3
+ * programmer: 	Conor Macpherson
+ * description: Defines helper functions for things like finiding file locations, validating log level, and extracting log details.
+ *
+ */
+
 import (
 	"bufio"
 	"errors"
@@ -13,6 +22,10 @@ import (
 )
 
 // CreateLogLevelDirectory creates the directory for storing logs for the level logLevel
+//
+// Parameters:
+//	string	logLevel	- Log level directory to create.
+//
 func CreateLogLevelDirectory(logLevel string) {
 	path := strings.ToUpper("logs/" + logLevel)
 	if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -21,6 +34,14 @@ func CreateLogLevelDirectory(logLevel string) {
 }
 
 // GetLogWriteLocation finds the location of current log file to send logs to for the provided logLevel.
+//
+// Parameters:
+//	string	logLevel	- Log level directory to create.
+//
+// Returns
+//	string	- The write location for the given log level.
+//	error	- Any errors that occur.
+//
 func GetLogWriteLocation(logLevel string) (string, error) {
 	dir := strings.ToUpper("logs/" + logLevel)
 	location := strings.ToUpper(dir+"/"+time.Now().Format(ResourceFileNameDateFormat)) + ".txt"
@@ -36,6 +57,14 @@ func GetLogWriteLocation(logLevel string) (string, error) {
 }
 
 // GetLastLogFileLocation gets the last log in the given log level's directory.
+//
+// Parameters:
+//	string	logLevel	- Log level to get the last file for.
+//
+// Returns
+//	string	- The location of the last file added to the logs for the given log level.
+//	error	- Any errors that occur.
+//
 func GetLastLogFileLocation(logLevel string) (string, error) {
 	var paths = GetLogLevelPaths([]string{logLevel})
 	if len(paths) == 0 {
@@ -46,6 +75,12 @@ func GetLastLogFileLocation(logLevel string) (string, error) {
 }
 
 // IsValidLogLevel check the provided logLevel is one of "DEBUG", "WARNING", "ERROR", "FATAL", "INFO", or "ALL"
+//
+// Parameters:
+//	string	logLevel	- Log level to get the last file for.
+//
+// Returns
+//	bool - True if the given log level is a valid log level.
 func IsValidLogLevel(logLevel string) bool {
 	for _, value := range LogLevels {
 		if strings.Compare(strings.ToUpper(value), strings.ToUpper(logLevel)) == 0 || strings.Compare(strings.ToUpper(value), "ALL") == 0 {
@@ -57,6 +92,14 @@ func IsValidLogLevel(logLevel string) bool {
 }
 
 // GetLastLogID find the last log under the given log level, and returns that plus 1.
+//
+// Parameters:
+//	string	location	- Location of the logs to check.
+//	string	logLevel	- Log level to get the last file for.
+//
+// Returns
+//	uint - the last id of the given log level.
+//
 func GetLastLogID(location string, logLevel string) uint {
 	file, err := os.Open(location)
 	if err != nil {
@@ -72,7 +115,7 @@ func GetLastLogID(location string, logLevel string) uint {
 		return 1
 	}
 
-	details, err := GetLogDetailsFromRawLog(rawLog, logLevel)
+	details, err := GetLogDetailsFromRawLog(rawLog)
 	if err != nil {
 		return 1
 	}
@@ -81,6 +124,13 @@ func GetLastLogID(location string, logLevel string) uint {
 }
 
 // GetLogLevelPaths goes through the list of log levels, and finds the path of every log in that level's directory.
+//
+// Parameters:
+//	[]string	logLevels	- Slice of log levels to get the path for.
+//
+// Returns
+//	[]string - Slice of strings containing paths for each provided log level.
+//
 func GetLogLevelPaths(logLevels []string) []string {
 	var paths []string
 	for _, level := range logLevels {
@@ -97,6 +147,13 @@ func GetLogLevelPaths(logLevels []string) []string {
 }
 
 // GetSearchFilePaths get a list of file paths for the files that need to be searched.
+//
+// Parameters:
+//	string	logLevel	- The log level to get the search file paths for.
+//
+// Returns
+//	[]string - Slice of strings containing paths for the provided log level.
+//
 func GetSearchFilePaths(logLevel string) []string {
 	var paths []string
 	var logLevels = append(LogLevels, "All")
@@ -109,8 +166,16 @@ func GetSearchFilePaths(logLevel string) []string {
 	return paths
 }
 
-// GetLogDetailsFromRawLog extracts the dat, id, location, and message of a raw log.
-func GetLogDetailsFromRawLog(rawLog string, logType string) (map[string]interface{}, error) {
+// GetLogDetailsFromRawLog extracts the created date, id, location, and message of a raw log.
+//
+// Parameters:
+//	string	rawLog	-	The raw log from the log file.
+//
+// Returns
+//	map[string]interface{}	- Slice of strings containing paths for the provided log level.
+//	error					- Any errors that occur.
+//
+func GetLogDetailsFromRawLog(rawLog string) (map[string]interface{}, error) {
 
 	regex, _ := regexp.Compile("\\w+\\s*=\\s*")
 	// Only find the first 3 keys.

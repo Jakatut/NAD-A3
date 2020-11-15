@@ -1,5 +1,14 @@
 package core
 
+/*
+ *
+ * file: 		resources.go
+ * project:		logging_service - NAD-A3
+ * programmer: 	Conor Macpherson
+ * description: Defines core resources such as response structs, date time layouts and mutex functions.
+ *
+ */
+
 import (
 	"sync"
 )

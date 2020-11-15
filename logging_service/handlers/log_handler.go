@@ -1,5 +1,14 @@
 package handlers
 
+/*
+ *
+ * file: 		log_handler.go
+ * project:		logging_service - NAD-A3
+ * programmer: 	Conor Macpherson
+ * description: Defines the log handler for handling requests from gin's router.
+ *
+ */
+
 import (
 	"log"
 	"logging_service/core"
@@ -12,6 +21,12 @@ import (
 )
 
 // HandlePostLog handles all post requests for any log type.
+//
+// Parameters:
+//	*gin.Context			c			- Handler context from gin.
+//	*core.FileMutexPool		mutexPool	- Contains Read/Write mutexes for each log type.
+//	*core.LogTypeCounter	counters	- Contains id counters for each log type.
+//
 func HandlePostLog(c *gin.Context, mutexPool *core.FileMutexPool, counters *core.LogTypeCounter) {
 	logData, err := serializeLogFromRequest(c)
 	if err != nil || logData == nil {
@@ -29,6 +44,11 @@ func HandlePostLog(c *gin.Context, mutexPool *core.FileMutexPool, counters *core
 }
 
 // HandleGetLog handles all get requests for any log type.
+//
+// Parameters:
+//	*gin.Context 			c 			- Handler context from gin.
+//	*core.FileMutexPool 	mutexPool	- Contains Read/Write mutexes for each log type.
+//
 func HandleGetLog(c *gin.Context, mutexPool *core.FileMutexPool) {
 	logData, err := serializeLogFromRequest(c)
 	if err != nil || logData == nil {
@@ -53,6 +73,12 @@ func HandleGetLog(c *gin.Context, mutexPool *core.FileMutexPool) {
  *
  */
 
+// getRequestWorker performs all actions required to search and return logs.
+//
+// Parameters:
+//	*models.LogModel 		log 		- Log to search.
+//	*core.FileMutexPool 	mutexPool	- Contains Read/Write mutexes for each log type.
+//
 func getRequestWorker(log *models.LogModel, mutexPool *core.FileMutexPool) (*core.Response, error) {
 	readResult, err := log.ReadLog(mutexPool)
 	if err != nil {
@@ -64,6 +90,13 @@ func getRequestWorker(log *models.LogModel, mutexPool *core.FileMutexPool) (*cor
 	return response, nil
 }
 
+// postRequestWorker performs all actions required to create a log.
+//
+// Parameters:
+//	*models.LogModel 		log 		- Log to write.
+//	*core.FileMutexPool		mutexPool	- Contains Read/Write mutexes for each log type.
+//	*core.LogTypeCounter	counters	- Contains id counters for each log type.
+//
 func postRequestWorker(logModel *models.LogModel, mutexPool *core.FileMutexPool, counters *core.LogTypeCounter) (*core.Response, error) {
 
 	logModel.ID = counters.AddCount(logModel.LogLevel)
@@ -83,10 +116,20 @@ func postRequestWorker(logModel *models.LogModel, mutexPool *core.FileMutexPool,
  *
  */
 
+// serializeLogFromRequest converts the url parameters or request body to a log model.
+//
+// Parameters:
+//	*gin.Context 			c 			- Handler context from gin.
+//
+// Returns
+//	*models.LogModel	- Serialized log model.
+//	error				- Error that occurs or nil.
+//
 func serializeLogFromRequest(c *gin.Context) (*models.LogModel, error) {
 	method := c.Request.Method
 	logData := new(models.LogModel)
 
+	// Check the log level.
 	logLevel := strings.ToUpper(c.Param("log_level"))
 	if !core.IsValidLogLevel(logLevel) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, "invalid log level.")
@@ -96,7 +139,6 @@ func serializeLogFromRequest(c *gin.Context) (*models.LogModel, error) {
 
 	switch method {
 	case "POST":
-
 		if logLevel == "ALL" {
 			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"Message": "Not found."})
 			return nil, nil

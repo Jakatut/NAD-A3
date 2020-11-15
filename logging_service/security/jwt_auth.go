@@ -1,5 +1,14 @@
 package security
 
+/*
+ *
+ * file: 		jwt_auth.go
+ * project:		logging_service - NAD-A3
+ * programmer: 	Conor Macpherson
+ * description: Defines the middleware for authentication jwt tokens from/with Auth0.
+ *
+ */
+
 import (
 	"log"
 	"net/http"
@@ -11,6 +20,9 @@ import (
 )
 
 // AuthenticateJWT is a gin middleware that authenticates a jwt in the Authorization header before proceeding with processing a request.
+//
+// Returns
+//	gin.HandlerFunc	- next gin handler/middleware.
 func AuthenticateJWT() gin.HandlerFunc {
 	auth0URI := os.Getenv("AUTH0_URI")
 	auth0Audience := os.Getenv("AUTH0_AUDIENCE")
@@ -32,6 +44,16 @@ func AuthenticateJWT() gin.HandlerFunc {
 	}
 }
 
+// WriteLog writes a log to a logfile.
+//
+// Receiver:
+//	*LogModel				logModel
+//
+// Parameters:
+//	int				statusCode	- http status code.
+//	string			message		- response message.
+//	*gin.Context	c			- handler context from gin.
+//
 func terminateWithError(statusCode int, message string, c *gin.Context) {
 	c.JSON(statusCode, gin.H{"error": message})
 	c.Abort()
