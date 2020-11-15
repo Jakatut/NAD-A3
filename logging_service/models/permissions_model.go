@@ -1,26 +1,29 @@
 package models
 
 import (
+	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
+	"strings"
 	"sync"
 )
 
 type operation struct {
-	Name        string   `json:"name"`
-	Permissions []string `json:"permissions"`
-	Errors      []string `json:"errors,omitempty"`
+	Action  string   `json:"action"`
+	Allowed []string `json:""`
 }
 
-type Endpoint struct {
+type endpoint struct {
 	Route      string      `json:"route"`
 	Operations []operation `json:"operations"`
 }
 
 type AccessControlModel struct {
-	Endpoints []Endpoint `json:"endpoints"`
+	Endpoints []endpoint `json:"endpoints"`
 	Lock      sync.RWMutex
 }
 
@@ -41,18 +44,55 @@ func (perms *AccessControlModel) GetPermissions() error {
 	return nil
 }
 
-func (perms *AccessControlModel) WritePermissions() {
+func (perms *AccessControlModel) WritePermissions() error {
+	bytes, err := json.Marshal(perms)
+	if err != nil {
+		return err
+	}
 
+	perms.Lock.Lock()
+	defer perms.Lock.Unlock()
+
+	jsonFile, err := os.Open("config/permissions.json")
+	if err != nil {
+		return err
+	}
+	bufferedWriter := bufio.NewWriter(jsonFile)
+	_, err = bufferedWriter.Write(bytes)
+
+	return nil
 }
 
-func (perms *AccessControlModel) GetChanges(changes map[string]string) {
-	if len(changes) != 0 {
-		for key, value := range changes {
+func (perms *AccessControlModel) GetChanges(changes url.Values) error {
 
+	endpoints := []map[string]interface{}{}
+	endpointToListLocation := map[string]int{}
+
+	if len(changes) != 0 {
+		updates := map[string]interface{}{}
+
+		for key := range changes {
+			formValueKeyDetails := strings.Split(key, "-")
+			if len(formValueKeyDetails) == 3 {
+				return errors.New("incorrect permission change value")
+			}
+			changedEndpoint := formValueKeyDetails[0]
+			changedRole := formValueKeyDetails[1]
+			changedAction := formValueKeyDetails[2]
+
+			if index, ok := endpointToListLocation[changedEndpoint]; ok {
+				endpoints[index]["route"] = changedEndpoint
+				if _, ok := endpoints[index]["operations"]; ok {
+					endpoints[index]["operations"] = append(endpoints[index]["operations"], changedRole)
+				} else {
+
+				}
+			} else {
+				endpoints = append(endpoints, updates)
+				endpointToListLocation[changedEndpoint] = len(endpoints) + 1
+			}
 		}
 	}
-}
 
-func convertFormValueToPermissions(formValue string) {
-	strings.split()
+	return nil
 }

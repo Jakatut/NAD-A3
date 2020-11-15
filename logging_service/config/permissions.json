@@ -1,11 +1,11 @@
 {
     "endpoints": [
-            { "route": "log/all", "operations": [{"name": "create", "allowed": ["admin", "user"]}, {"name": "read", "allowed": ["admin", "user"]}]},
-            { "route": "log/debug", "operations": [{"name": "create", "allowed": ["admin", "user"]}, {"name": "read", "allowed": ["admin", "user"]}]},
-            { "route": "log/info", "operations": [{"name": "create", "allowed": ["admin", "user"]}, {"name": "read", "allowed": ["admin", "user"]}]},
-            { "route": "log/error", "operations": [{"name": "create", "allowed": ["admin", "user"]}, {"name": "read", "allowed": ["admin", "user"]}]},
-            { "route": "log/warning", "operations": [{"name": "create", "allowed": ["admin", "user"]}, {"name": "read", "allowed": ["admin", "user"]}]},
-            { "route": "log/fatal", "operations": [{"name": "create", "allowed": ["admin", "user"]}, {"name": "read", "allowed": ["admin", "user"]}]},
-            { "route": "permissions", "operations": [{"name": "create", "allowed": ["admin", "user"]}, {"name": "read", "allowed": ["admin", "user"]}]}
+            { "route": "log/all", "operations": [{"action": "create", "allowed": ["admin", "user"]}, {"action": "read", "allowed": ["admin", "user"]}]},
+            { "route": "log/debug", "operations": [{"action": "create", "allowed": ["admin", "user"]}, {"action": "read", "allowed": ["admin", "user"]}]},
+            { "route": "log/info", "operations": [{"action": "create", "allowed": ["admin", "user"]}, {"action": "read", "allowed": ["admin", "user"]}]},
+            { "route": "log/error", "operations": [{"action": "create", "allowed": ["admin", "user"]}, {"action": "read", "allowed": ["admin", "user"]}]},
+            { "route": "log/warning", "operations": [{"action": "create", "allowed": ["admin", "user"]}, {"action": "read", "allowed": ["admin", "user"]}]},
+            { "route": "log/fatal", "operations": [{"action": "create", "allowed": ["admin", "user"]}, {"action": "read", "allowed": ["admin", "user"]}]},
+            { "route": "permissions", "operations": [{"action": "create", "allowed": ["admin", "user"]}, {"action": "read", "allowed": ["admin", "user"]}]}
     ]
 }

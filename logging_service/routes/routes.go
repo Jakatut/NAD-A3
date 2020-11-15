@@ -3,7 +3,6 @@ package routes
 import (
 	"logging_service/core"
 	"logging_service/handlers"
-	permissions "logging_service/handlers/permissions"
 	"logging_service/security"
 
 	"github.com/gin-contrib/cors"
@@ -38,7 +37,7 @@ func Setup(router *gin.Engine, mutexPool *core.FileMutexPool, counters *core.Log
 	})
 
 	router.GET("/", handlers.HandleGetRoot)
-	router.GET("/access_control", permissions.HandleGetAccessControl)
+	// router.GET("/access_control", handlers.HandleGetAccessControl)
 
 	// port := os.Getenv("PORT")
 	router.Run(":8080")
