@@ -7,6 +7,7 @@ require (
 	github.com/auth0/go-jwt-middleware v0.0.0-20201030150249-d783b5c46b39
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/extemporalgenome/curio v0.0.0-20130429052410-601d010607b7
+	github.com/fatih/structs v1.1.0
 	github.com/gin-contrib/cors v1.3.1
 	github.com/gin-gonic/gin v1.6.3
 	github.com/go-playground/locales v0.13.0
