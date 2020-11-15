@@ -1,0 +1,4 @@
+Port: "8080"
+Auth0Audience: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+Auth0URI: https://ca-logging.us.auth0.com/
+LogDirectory: LOGS/

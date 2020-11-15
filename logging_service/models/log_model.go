@@ -310,7 +310,7 @@ func (logModel *LogModel) searchLog(location string) ([]LogModel, error) {
 //
 func rawLogToModel(rawLog string, logType string) (*LogModel, error) {
 	logModel := new(LogModel)
-	details, err := core.GetLogDetailsFromRawLog(rawLog, logType)
+	details, err := core.GetLogDetailsFromRawLog(rawLog)
 	if err != nil {
 		return nil, err
 	}

@@ -10,10 +10,10 @@ package routes
  */
 
 import (
+	"logging_service/config"
 	"logging_service/core"
 	"logging_service/handlers"
 	"logging_service/security"
-	"os"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -46,15 +46,14 @@ func Setup(router *gin.Engine, mutexPool *core.FileMutexPool, counters *core.Log
 	router.Static("/static", "public/static")
 
 	// Create a log group and give JWT auth middleware.
-	authorized := router.Group("/log")
-	authorized.Use(security.AuthenticateJWT())
-	authorized.GET("/log/:log_level", func(c *gin.Context) {
+	// authorized := router.Group("/log")
+	router.Use(security.AuthenticateJWT())
+	router.GET("/log/:log_level", func(c *gin.Context) {
 		handlers.HandleGetLog(c, mutexPool)
 	})
-	authorized.POST("/log/:log_level", func(c *gin.Context) {
+	router.POST("/log/:log_level", func(c *gin.Context) {
 		handlers.HandlePostLog(c, mutexPool, counters)
 	})
 
-	port := os.Getenv("PORT")
-	router.Run(":" + port)
+	router.Run(":" + config.GetConfig().Port)
 }

@@ -11,8 +11,8 @@ package security
 
 import (
 	"log"
+	"logging_service/config"
 	"net/http"
-	"os"
 
 	"github.com/auth0-community/go-auth0"
 	"github.com/gin-gonic/gin"
@@ -24,13 +24,12 @@ import (
 // Returns
 //	gin.HandlerFunc	- next gin handler/middleware.
 func AuthenticateJWT() gin.HandlerFunc {
-	auth0URI := os.Getenv("AUTH0_URI")
-	auth0Audience := os.Getenv("AUTH0_AUDIENCE")
 
 	return func(c *gin.Context) {
 
-		client := auth0.NewJWKClient(auth0.JWKClientOptions{URI: auth0URI + ".well-known/jwks.json"}, nil)
-		configuration := auth0.NewConfiguration(client, []string{auth0Audience}, auth0URI, jose.RS256)
+		conf := config.GetConfig()
+		client := auth0.NewJWKClient(auth0.JWKClientOptions{URI: conf.Auth0URI + ".well-known/jwks.json"}, nil)
+		configuration := auth0.NewConfiguration(client, []string{conf.Auth0Audience}, conf.Auth0URI, jose.RS256)
 		validator := auth0.NewValidator(configuration, nil)
 
 		_, err := validator.ValidateRequest(c.Request)
