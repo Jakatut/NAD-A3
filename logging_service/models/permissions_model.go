@@ -65,34 +65,51 @@ func (perms *AccessControlModel) WritePermissions() error {
 
 func (perms *AccessControlModel) GetChanges(changes url.Values) error {
 
-	endpoints := []map[string]interface{}{}
-	endpointToListLocation := map[string]int{}
+	var permissions AccessControlModel
+
+	endpoints := []endpoint{}
 
 	if len(changes) != 0 {
-		updates := map[string]interface{}{}
-
 		for key := range changes {
 			formValueKeyDetails := strings.Split(key, "-")
-			if len(formValueKeyDetails) == 3 {
+			if len(formValueKeyDetails) < 3 {
 				return errors.New("incorrect permission change value")
 			}
-			changedEndpoint := formValueKeyDetails[0]
+			changedRoute := formValueKeyDetails[0]
 			changedRole := formValueKeyDetails[1]
 			changedAction := formValueKeyDetails[2]
 
-			if index, ok := endpointToListLocation[changedEndpoint]; ok {
-				endpoints[index]["route"] = changedEndpoint
-				if _, ok := endpoints[index]["operations"]; ok {
-					endpoints[index]["operations"] = append(endpoints[index]["operations"], changedRole)
-				} else {
-
+			if len(endpoints) > 0 {
+				for _, _endpoint := range endpoints {
+					if _endpoint.Route == changedRoute {
+						for _, _operation := range _endpoint.Operations {
+							if _operation.Action == changedAction {
+								_operation.Allowed = append(_operation.Allowed, changedRole)
+							}
+						}
+					}
 				}
 			} else {
-				endpoints = append(endpoints, updates)
-				endpointToListLocation[changedEndpoint] = len(endpoints) + 1
+				newOperation := operation{Action: changedAction, Allowed: []string{changedRole}}
+				newEndpoint := endpoint{Route: changedRoute, Operations: []operation{newOperation}}
+				permissions.Endpoints = append(permissions.Endpoints, newEndpoint)
 			}
 		}
-	}
 
+		for _, _endpoint := range permissions.Endpoints {
+			for endpointIndex, currentEndpoint := range perms.Endpoints {
+				if _endpoint.Route == currentEndpoint.Route {
+					for _, _operation := range _endpoint.Operations {
+						for operationIndex, currentOperations := range currentEndpoint.Operations {
+							if currentOperations.Action == _operation.Action {
+								perms.Endpoints[endpointIndex].Operations[operationIndex].Allowed = _operation.Allowed
+							}
+						}
+					}
+				}
+			}
+		}
+
+	}
 	return nil
 }

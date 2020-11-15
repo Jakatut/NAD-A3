@@ -10,22 +10,22 @@ import (
 func HandleGetAccessControl(c *gin.Context) {
 
 	var changes = c.Request.URL.Query()
-	changes.Get()
-
-	if len(changes) == 0 {
-		c.AbortWithStatus(http.StatusOK)
-		return
-	}
-
 	var permissions models.AccessControlModel
 	if err := permissions.GetPermissions(); err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
 
-	if err := permissions.GetChanges(changes); err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
-		return
+	if len(changes) > 0 {
+		if err := permissions.GetChanges(changes); err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+			return
+		}
+
+		if err := permissions.WritePermissions(); err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+			return
+		}
 	}
 
 	permissions.Lock.RLock()

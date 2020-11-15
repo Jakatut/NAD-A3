@@ -37,7 +37,7 @@ func Setup(router *gin.Engine, mutexPool *core.FileMutexPool, counters *core.Log
 	})
 
 	router.GET("/", handlers.HandleGetRoot)
-	// router.GET("/access_control", handlers.HandleGetAccessControl)
+	router.GET("/access_control", handlers.HandleGetAccessControl)
 
 	// port := os.Getenv("PORT")
 	router.Run(":8080")
