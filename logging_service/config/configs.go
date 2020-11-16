@@ -10,7 +10,9 @@ package config
  */
 
 import (
+	"errors"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	"gopkg.in/yaml.v2"
@@ -24,10 +26,24 @@ type Values struct {
 }
 
 // GetConfig reads and unmarshals a yaml file to a config.Values struct.
-
+//
+// Returns
+//	Values - Config values
+//
 func GetConfig() Values {
-	fileName, _ := filepath.Abs("config/config.yaml")
+	configPath := os.Getenv("LOGGING_SERVICE_CONFIG_PATH")
+	if configPath == "" {
+		panic(errors.New("LOGGING_SERVICE_CONFIG_PATH not set; config required"))
+	}
+	fileName, err := filepath.Abs(configPath)
+	if err != nil {
+		panic(err)
+	}
+
 	yamlFile, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		panic(err)
+	}
 	var config Values
 	err = yaml.Unmarshal(yamlFile, &config)
 	if err != nil {
@@ -38,6 +54,8 @@ func GetConfig() Values {
 	if err != nil {
 		panic(err)
 	}
+
+	config.LogDirectory += string(os.PathSeparator)
 
 	return config
 }

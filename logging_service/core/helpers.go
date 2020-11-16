@@ -13,6 +13,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"logging_service/config"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -27,7 +28,7 @@ import (
 //	string	logLevel	- Log level directory to create.
 //
 func CreateLogLevelDirectory(logLevel string) {
-	path := strings.ToUpper("logs/" + logLevel)
+	path := config.GetConfig().LogDirectory + strings.ToUpper(logLevel) + "/"
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		os.MkdirAll(path, 0700)
 	}
@@ -43,8 +44,8 @@ func CreateLogLevelDirectory(logLevel string) {
 //	error	- Any errors that occur.
 //
 func GetLogWriteLocation(logLevel string) (string, error) {
-	dir := strings.ToUpper("logs/" + logLevel)
-	location := strings.ToUpper(dir+"/"+time.Now().Format(ResourceFileNameDateFormat)) + ".txt"
+	dir := config.GetConfig().LogDirectory + strings.ToUpper(logLevel) + "/"
+	location := dir + time.Now().Format(ResourceFileNameDateFormat) + ".txt"
 	_, err := os.Stat(dir)
 	if os.IsNotExist(err) {
 		os.MkdirAll(dir, 0700)
@@ -134,7 +135,7 @@ func GetLastLogID(location string, logLevel string) uint {
 func GetLogLevelPaths(logLevels []string) []string {
 	var paths []string
 	for _, level := range logLevels {
-		dir := strings.ToUpper("logs/" + level + "/")
+		dir := config.GetConfig().LogDirectory + strings.ToUpper(level) + "/"
 		_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 			if path != dir {
 				paths = append(paths, path)

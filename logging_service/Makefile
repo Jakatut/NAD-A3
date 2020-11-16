@@ -6,9 +6,7 @@ $(DOCKER_CMD): clean
 	mkdir -p $(DOCKER_BUILD)
 	$(GO_BUILD_ENV) go build -v -o $(DOCKER_CMD) .
 	
-export AUTH0_URI=https://ca-logging.us.auth0.com/
-export AUTH0_AUDIENCE=http://localhost:8000
-export PORT=8080
+export LOGGING_SERVICE_CONFIG_PATH=config/config.yaml
 
 build:
 	go build -o bin/logging_service -v .
