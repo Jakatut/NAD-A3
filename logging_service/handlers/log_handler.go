@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -100,7 +101,10 @@ func getRequestWorker(log *models.LogModel, mutexPool *core.FileMutexPool) (*cor
 func postRequestWorker(logModel *models.LogModel, mutexPool *core.FileMutexPool, counters *core.LogTypeCounter) (*core.Response, error) {
 
 	logModel.ID = counters.AddCount(logModel.LogLevel)
+	var createdDate = time.Now()
+	logModel.CreatedDate = &createdDate
 	if err := logModel.WriteLog(mutexPool); err != nil {
+		counters.SubtractCount(logModel.LogLevel)
 		return nil, err
 	}
 

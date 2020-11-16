@@ -21,7 +21,7 @@ import (
 
 // LogModel defines the contents of a log
 type LogModel struct {
-	CreatedDate *time.Time `json:",omitempty" form:"created_date,omitempty" time_format:"2006-01-02T15:04:05Z"`
+	CreatedDate *time.Time `json:"created_date,omitempty" form:"created_date,omitempty" time_format:"2006-01-02T15:04:05Z"`
 	CreatedDay  *time.Time `json:",omitempty" form:"created_day,omitempty" time_format:"2006-01-02"`
 	CreatedTime *time.Time `json:",omitempty" form:"created_time,omitempty" time_format:"15:04:05Z"`
 	ID          uint       `json:"id,omitempty" form:"id,omitempty"`
