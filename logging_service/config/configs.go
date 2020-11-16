@@ -10,7 +10,6 @@ package config
  */
 
 import (
-	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -31,11 +30,11 @@ type Values struct {
 //	Values - Config values
 //
 func GetConfig() Values {
-	configPath := os.Getenv("LOGGING_SERVICE_CONFIG_PATH")
-	if configPath == "" {
-		panic(errors.New("LOGGING_SERVICE_CONFIG_PATH not set; config required"))
-	}
-	fileName, err := filepath.Abs(configPath)
+	// configPath := os.Getenv("LOGGING_SERVICE_CONFIG_PATH")
+	// if configPath == "" {
+	// panic(errors.New("LOGGING_SERVICE_CONFIG_PATH not set; config required"))
+	// }
+	fileName, err := filepath.Abs("config/config.yaml")
 	if err != nil {
 		panic(err)
 	}
