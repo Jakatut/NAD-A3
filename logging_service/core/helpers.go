@@ -28,7 +28,7 @@ import (
 //	string	logLevel	- Log level directory to create.
 //
 func CreateLogLevelDirectory(logLevel string) {
-	path := config.GetConfig().LogDirectory + strings.ToUpper(logLevel) + "/"
+	path := config.GetConfig().LogDirectory + strings.ToUpper(logLevel) + string(os.PathSeparator)
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		os.MkdirAll(path, 0700)
 	}
@@ -44,7 +44,7 @@ func CreateLogLevelDirectory(logLevel string) {
 //	error	- Any errors that occur.
 //
 func GetLogWriteLocation(logLevel string) (string, error) {
-	dir := config.GetConfig().LogDirectory + strings.ToUpper(logLevel) + "/"
+	dir := config.GetConfig().LogDirectory + strings.ToUpper(logLevel) + string(os.PathSeparator)
 	location := dir + time.Now().Format(ResourceFileNameDateFormat) + ".txt"
 	_, err := os.Stat(dir)
 	if os.IsNotExist(err) {
@@ -135,7 +135,7 @@ func GetLastLogID(location string, logLevel string) uint {
 func GetLogLevelPaths(logLevels []string) []string {
 	var paths []string
 	for _, level := range logLevels {
-		dir := config.GetConfig().LogDirectory + strings.ToUpper(level) + "/"
+		dir := config.GetConfig().LogDirectory + strings.ToUpper(level) + string(os.PathSeparator)
 		_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 			if path != dir {
 				paths = append(paths, path)
