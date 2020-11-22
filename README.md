@@ -11,10 +11,14 @@ export LOGGING_SERVICE_CONFIG_PATH=config/config.yaml
 
 Your config.yaml should have 4 items:
 ```
-Port: 8080
-Auth0Audience: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
-Auth0URI: https://ca-logging.us.auth0.com/
-LogDirectory: LOGS/
+Port: port server listens to.
+Auth0Audience: auth 0 audience.
+Auth0URI: auth 0 authentication url
+LogDirectory: location of log storage (old)
+DATABASE_USERNAME: mongodb username
+DATABASE_PASSWORD: mongodb password
+DATABASE_NAME: mongodb name
+DATABASE_URL: mongodb database url
 ```
 
 Linux/Mac:
@@ -26,10 +30,8 @@ bin/logging_service
 (idk how to run on windows lol)
 Windows: 
 ```
-go run main.go
+go build -o bin/logging_service -v .
 ```
-
-
 
 
 ## Debugging
