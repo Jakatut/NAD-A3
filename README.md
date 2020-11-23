@@ -68,3 +68,18 @@ Make sure you have a GOPATH setup.
 The GOPATH environment variable specifies the location of your workspace. It defaults to a directory named go inside your home directory, so $HOME/go on Unix, $home/go on Plan 9, and %USERPROFILE%\go (usually C:\Users\YourName\go) on Windows.
 
 Under the debug tab in vscode, click launch. You can set breakpoints and watch variables in this tab.
+
+
+### Learning Opportunities in this Project
+
+Golang
+Gin-Gonic
+
+AWS:
+Ec2
+https://aws.amazon.com/quickstart/architecture/mongodb/
+	vpc
+	iam
+	
+
+Monogdb

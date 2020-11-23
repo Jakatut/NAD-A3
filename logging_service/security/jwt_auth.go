@@ -28,8 +28,8 @@ func AuthenticateJWT() gin.HandlerFunc {
 	return func(c *gin.Context) {
 
 		conf := config.GetConfig()
-		client := auth0.NewJWKClient(auth0.JWKClientOptions{URI: conf.Auth0URI + ".well-known/jwks.json"}, nil)
-		configuration := auth0.NewConfiguration(client, []string{conf.Auth0Audience}, conf.Auth0URI, jose.RS256)
+		client := auth0.NewJWKClient(auth0.JWKClientOptions{URI: conf.Auth.Auth0URI + ".well-known/jwks.json"}, nil)
+		configuration := auth0.NewConfiguration(client, []string{conf.Auth.Auth0Audience}, conf.Auth.Auth0URI, jose.RS256)
 		validator := auth0.NewValidator(configuration, nil)
 
 		_, err := validator.ValidateRequest(c.Request)
@@ -43,16 +43,6 @@ func AuthenticateJWT() gin.HandlerFunc {
 	}
 }
 
-// WriteLog writes a log to a logfile.
-//
-// Receiver:
-//	*LogModel				logModel
-//
-// Parameters:
-//	int				statusCode	- http status code.
-//	string			message		- response message.
-//	*gin.Context	c			- handler context from gin.
-//
 func terminateWithError(statusCode int, message string, c *gin.Context) {
 	c.JSON(statusCode, gin.H{"error": message})
 	c.Abort()

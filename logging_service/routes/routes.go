@@ -11,9 +11,7 @@ package routes
 
 import (
 	"logging_service/config"
-	"logging_service/core"
 	"logging_service/handlers"
-	"logging_service/security"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -26,7 +24,7 @@ import (
 //	*core.FileMutexPool		mutexPool	- contains Read/Write mutexes for each log type.
 //	*core.LogTypeCounter	counters	- contains id counters for each log type
 //
-func Setup(router *gin.Engine, mutexPool *core.FileMutexPool, counters *core.LogTypeCounter) {
+func Setup(router *gin.Engine) {
 
 	// Add logger, cross origin restrictions.
 	router.Use(
@@ -47,13 +45,10 @@ func Setup(router *gin.Engine, mutexPool *core.FileMutexPool, counters *core.Log
 
 	// Create a log group and give JWT auth middleware.
 	// authorized := router.Group("/log")
-	router.Use(security.AuthenticateJWT())
-	router.GET("/log/:log_level", func(c *gin.Context) {
-		handlers.HandleGetLog(c, mutexPool)
-	})
-	router.POST("/log/:log_level", func(c *gin.Context) {
-		handlers.HandlePostLog(c, mutexPool, counters)
-	})
+	// router.Use(security.AuthenticateJWT())
+	router.GET("/log/", handlers.HandleGetLog)
+	router.GET("/log/:log_level", handlers.HandleGetLog)
+	router.POST("/log/:log_level", handlers.HandlePostLog)
 
-	router.Run(":" + config.GetConfig().Port)
+	router.Run(":" + config.GetConfig().Server.Port)
 }

@@ -10,15 +10,17 @@ package handlers
  */
 
 import (
+	"errors"
 	"log"
 	"logging_service/core"
-	models "logging_service/models"
+	"logging_service/models"
 	"net/http"
-	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // HandlePostLog handles all post requests for any log type.
@@ -28,90 +30,94 @@ import (
 //	*core.FileMutexPool		mutexPool	- Contains Read/Write mutexes for each log type.
 //	*core.LogTypeCounter	counters	- Contains id counters for each log type.
 //
-func HandlePostLog(c *gin.Context, mutexPool *core.FileMutexPool, counters *core.LogTypeCounter) {
-	logData, err := serializeLogFromRequest(c)
+func HandlePostLog(c *gin.Context) {
+	logData, err := getNewLog(c)
 	if err != nil || logData == nil {
 		return
 	}
 
-	result, err := postRequestWorker(logData, mutexPool, counters)
-
-	if err != nil || result == nil {
+	if err := logData.Create(); err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
-		log.Fatal(err)
 	} else {
-		c.JSON(200, result)
+		c.JSON(200, logData)
 	}
 }
 
 // HandleGetLog handles all get requests for any log type.
 //
 // Parameters:
-//	*gin.Context 			c 			- Handler context from gin.
-//	*core.FileMutexPool 	mutexPool	- Contains Read/Write mutexes for each log type.
+//	*gin.Context	c	- Handler context from gin.
 //
-func HandleGetLog(c *gin.Context, mutexPool *core.FileMutexPool) {
-	logData, err := serializeLogFromRequest(c)
-	if err != nil || logData == nil {
-		return
+func HandleGetLog(c *gin.Context) {
+	fields, err := getSearchFields(c)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
 	}
 
-	result, err := getRequestWorker(logData, mutexPool)
-
+	_log := models.Log{}
+	results, err := _log.Find(fields)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"Error": "internal server error"})
 		log.Fatal(err)
-	} else if result != nil && len(result.Data.([]models.LogModel)) < 1 {
-		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "not found"})
 	} else {
-		c.JSON(200, result)
+		c.JSON(200, results)
 	}
 }
 
-/*
- *
- * Workers
- *
- */
-
-// getRequestWorker performs all actions required to search and return logs.
+// HandleGetLog handles all get requests for any log type.
 //
 // Parameters:
-//	*models.LogModel 		log 		- Log to search.
-//	*core.FileMutexPool 	mutexPool	- Contains Read/Write mutexes for each log type.
+//	*gin.Context	c	- Handler context from gin.
 //
-func getRequestWorker(log *models.LogModel, mutexPool *core.FileMutexPool) (*core.Response, error) {
-	readResult, err := log.ReadLog(mutexPool)
-	if err != nil {
-		return nil, err
+//	models.LogSearchFields - Struct containing log search fields.
+//	error				   - Any error that occurs.
+//
+func getSearchFields(c *gin.Context) (models.LogSearchFields, error) {
+	createdAt := c.Query("created_at")
+	from := c.Query("from")
+	to := c.Query("to")
+	page := c.Query("page")
+	id := c.Query("id")
+	location := c.Query("location")
+	logLevel := c.Param("log_level")
+
+	searchFields := models.LogSearchFields{}
+
+	createdAtDate, err := time.Parse(core.LogDateFormat, createdAt)
+	if createdAt != "" && err != nil {
+		return searchFields, errors.New("created_at: invalid date time format")
+	}
+	fromDate, err := time.Parse(core.LogDateFormat, from)
+	if from != "" && err != nil {
+		return searchFields, errors.New("from: invalid date time format")
+	}
+	toDate, err := time.Parse(core.LogDateFormat, to)
+	if to != "" && err != nil {
+		return searchFields, errors.New("to: invalid date time format")
+	}
+	pageNumber, err := strconv.Atoi(page)
+	if page != "" && err != nil {
+		return searchFields, errors.New("page: must be a number")
 	}
 
-	var response = new(core.Response)
-	response.Data = readResult
-	return response, nil
-}
-
-// postRequestWorker performs all actions required to create a log.
-//
-// Parameters:
-//	*models.LogModel 		log 		- Log to write.
-//	*core.FileMutexPool		mutexPool	- Contains Read/Write mutexes for each log type.
-//	*core.LogTypeCounter	counters	- Contains id counters for each log type.
-//
-func postRequestWorker(logModel *models.LogModel, mutexPool *core.FileMutexPool, counters *core.LogTypeCounter) (*core.Response, error) {
-
-	logModel.ID = counters.AddCount(logModel.LogLevel)
-	var createdDate = time.Now()
-	logModel.CreatedDate = &createdDate
-	if err := logModel.WriteLog(mutexPool); err != nil {
-		counters.SubtractCount(logModel.LogLevel)
-		return nil, err
+	if from != "" && to == "" {
+		toDate = time.Now()
+	} else if from == "" && to != "" {
+		fromDate = time.Unix(0, 0)
 	}
-
-	response := new(core.Response)
-	response.Data = logModel
-	response.Message = "success"
-	return response, nil
+	objectID, err := primitive.ObjectIDFromHex(id)
+	if id != "" && err != nil {
+		return searchFields, errors.New("id: invalid id")
+	}
+	return models.LogSearchFields{
+		CreatedAt: &createdAtDate,
+		Location:  location,
+		FromDate:  &fromDate,
+		ToDate:    &toDate,
+		Page:      int64(pageNumber),
+		LogLevel:  strings.ToUpper(logLevel),
+		ID:        objectID,
+	}, nil
 }
 
 /*
@@ -120,52 +126,60 @@ func postRequestWorker(logModel *models.LogModel, mutexPool *core.FileMutexPool,
  *
  */
 
-// serializeLogFromRequest converts the url parameters or request body to a log model.
+// getNewLog converts a json payload to a log model.
 //
 // Parameters:
-//	*gin.Context 			c 			- Handler context from gin.
+//	*gin.Context	c	- Handler context from gin.
 //
 // Returns
-//	*models.LogModel	- Serialized log model.
-//	error				- Error that occurs or nil.
+//	*models.Log	- Serialized log model.
+//	error		- Error that occurs or nil.
 //
-func serializeLogFromRequest(c *gin.Context) (*models.LogModel, error) {
-	method := c.Request.Method
-	logData := new(models.LogModel)
+func getNewLog(c *gin.Context) (*models.Log, error) {
+	logData := new(models.Log)
 
 	// Check the log level.
 	logLevel := strings.ToUpper(c.Param("log_level"))
-	if !core.IsValidLogLevel(logLevel) {
-		c.AbortWithStatusJSON(http.StatusBadRequest, "invalid log level.")
-		return nil, nil
+	if logLevel != "" && !IsValidLogLevel(logLevel) {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"Error": "invalid log level"})
+		return logData, nil
 	}
 	logData.LogLevel = logLevel
 
-	switch method {
-	case "POST":
-		if logLevel == "ALL" {
-			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"Message": "Not found."})
+	if logData.LogLevel == "" {
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"Message": "Not found."})
+		return nil, nil
+	}
+	if err := c.ShouldBindJSON(logData); err != nil {
+		if err.Error() == "EOF" {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"Errors": "Missing payload"})
+			return nil, nil
+		} else if missing, empty := logData.IsEmptyCreate(); empty {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"Errors": missing})
 			return nil, nil
 		}
-		if err := c.ShouldBindJSON(logData); err != nil {
-			if err.Error() == "EOF" {
-				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"Errors": "Missing payload"})
-			} else if missing, empty := logData.IsEmptyCreate(); empty {
-				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"Errors": missing})
-				return nil, nil
-			} else {
-				c.AbortWithStatusJSON(http.StatusBadRequest, err)
-			}
-			return nil, nil
-		}
-	case "GET":
-		if err := c.ShouldBindQuery(logData); err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, err)
-			return nil, nil
-		}
-		logData.Location, _ = url.QueryUnescape(logData.Location)
-		logData.Message, _ = url.QueryUnescape(logData.Message)
+		c.AbortWithStatusJSON(http.StatusBadRequest, err)
+		return nil, nil
 	}
 
+	logData.CreatedAt = time.Now()
+
 	return logData, nil
+}
+
+// IsValidLogLevel check the provided logLevel is one of "DEBUG", "WARNING", "ERROR", "FATAL" or "INFO"
+//
+// Parameters:
+//	string	logLevel	- Log level to get the last file for.
+//
+// Returns
+//	bool - True if the given log level is a valid log level.
+func IsValidLogLevel(logLevel string) bool {
+	for _, value := range core.LogLevels {
+		if logLevel == "" || strings.ToUpper(value) == strings.ToUpper(logLevel) {
+			return true
+		}
+	}
+
+	return false
 }
