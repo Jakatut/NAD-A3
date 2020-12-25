@@ -1,14 +1,14 @@
 Server:
-    PORT: 
+    PORT:
 Auth:
-    AUTH_0_AUDIENCE: 
-    AUTH_0_URI: 
+    AUTH_0_AUDIENCE:
+    AUTH_0_URI:
 
 Database:
-    DATABASE_USERNAME: 
-    DATABASE_PASSWORD: 
-    DATABASE_NAME: 
-    DATABASE_URL: 
+    DATABASE_USERNAME:
+    DATABASE_PASSWORD:
+    DATABASE_NAME:
+    DATABASE_URL:
 
 Results:
-    LIMIT: 
+    LIMIT:
