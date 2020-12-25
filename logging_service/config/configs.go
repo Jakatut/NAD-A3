@@ -55,13 +55,13 @@ type results struct {
 //	Values - Config values
 //
 func GetConfig() Values {
-	// configPath := os.Getenv("LOGGING_SERVICE_CONFIG_PATH")
-	// if configPath == "" {
-	// 	panic(errors.New("LOGGING_SERVICE_CONFIG_PATH not set; config required"))
-	// }
-	fileName, err := filepath.Abs("config/config.yaml")
-	if err != nil {
-		panic(err)
+	fileName := os.Getenv("LOGGING_SERVICE_CONFIG_PATH")
+	if fileName == "" {
+		var err error
+		fileName, err = filepath.Abs("config/config.yaml")
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	yamlFile, err := ioutil.ReadFile(fileName)

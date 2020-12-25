@@ -7,7 +7,7 @@
 
 logging_service/bin/
 
-logging_service/config/*
+logging_service/config/real_config.yaml
 
 # Test binary, built with `go test -c`
 *.test
