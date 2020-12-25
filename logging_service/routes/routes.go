@@ -28,7 +28,7 @@ func Setup(router *gin.Engine) {
 
 	// Add logger, cross origin restrictions.
 	router.Use(
-		gin.Logger(),
+		// gin.Logger(),
 		cors.New(cors.Config{
 			AllowMethods:     []string{"POST", "GET"},
 			AllowHeaders:     []string{"Content-Type", "Origin", "Accept", "Authorization", "*"},
@@ -46,9 +46,11 @@ func Setup(router *gin.Engine) {
 	// Create a log group and give JWT auth middleware.
 	// authorized := router.Group("/log")
 	// router.Use(security.AuthenticateJWT())
-	router.GET("/log/", handlers.HandleGetLog)
+	router.GET("/log", handlers.HandleGetLog)
 	router.GET("/log/:log_level", handlers.HandleGetLog)
 	router.POST("/log/:log_level", handlers.HandlePostLog)
+	router.GET("/analytics/count/", handlers.HandleGetLogCount)
+	router.GET("/analytics/count/:log_level", handlers.HandleGetLogCount)
 
 	router.Run(":" + config.GetConfig().Server.Port)
 }

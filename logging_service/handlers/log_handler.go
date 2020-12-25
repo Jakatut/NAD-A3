@@ -54,12 +54,33 @@ func HandleGetLog(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
 	}
 
-	_log := models.Log{}
-	results, err := _log.Find(fields)
+	log := models.Log{}
+	results, err := log.Find(fields)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"Error": "internal server error"})
-		log.Fatal(err)
 	} else {
+		c.JSON(200, results)
+	}
+}
+
+// HandleGetLogCount handles getting the count of logs based on the provided parameters.
+//
+// Parameters:
+//	*gin.Context	c	- Handler context from gin.
+//
+func HandleGetLogCount(c *gin.Context) {
+	fields, err := getSearchFields(c)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
+	}
+
+	_log := models.Log{}
+	count, err := _log.Count(fields)
+	if err != nil {
+		log.Fatal(err.Error())
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"Error": "internal server error"})
+	} else {
+		results := core.CountResults{Total: count}
 		c.JSON(200, results)
 	}
 }
@@ -80,6 +101,9 @@ func getSearchFields(c *gin.Context) (models.LogSearchFields, error) {
 	id := c.Query("id")
 	location := c.Query("location")
 	logLevel := c.Param("log_level")
+	orderBy := c.Query("orderby")
+	limit := c.Query("limit")
+
 
 	searchFields := models.LogSearchFields{}
 
@@ -87,28 +111,42 @@ func getSearchFields(c *gin.Context) (models.LogSearchFields, error) {
 	if createdAt != "" && err != nil {
 		return searchFields, errors.New("created_at: invalid date time format")
 	}
+
 	fromDate, err := time.Parse(core.LogDateFormat, from)
 	if from != "" && err != nil {
 		return searchFields, errors.New("from: invalid date time format")
 	}
+
 	toDate, err := time.Parse(core.LogDateFormat, to)
 	if to != "" && err != nil {
 		return searchFields, errors.New("to: invalid date time format")
 	}
+
 	pageNumber, err := strconv.Atoi(page)
 	if page != "" && err != nil {
 		return searchFields, errors.New("page: must be a number")
 	}
+	limitNumber, err := strconv.Atoi(limit)
+	if limit != "" && err != nil {
+		return searchFields, errors.New("limit: must be a number")
+	}
 
+	if !isOrderByFieldValid(orderBy) {
+		return searchFields, errors.New("orderby: must be 'created_at', 'log_level', 'id', or 'location'")
+	}
+
+	// Create secondary required date value for to or from if not provided.
 	if from != "" && to == "" {
 		toDate = time.Now()
 	} else if from == "" && to != "" {
 		fromDate = time.Unix(0, 0)
 	}
+
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if id != "" && err != nil {
 		return searchFields, errors.New("id: invalid id")
 	}
+
 	return models.LogSearchFields{
 		CreatedAt: &createdAtDate,
 		Location:  location,
@@ -117,7 +155,20 @@ func getSearchFields(c *gin.Context) (models.LogSearchFields, error) {
 		Page:      int64(pageNumber),
 		LogLevel:  strings.ToUpper(logLevel),
 		ID:        objectID,
+		OrderBy:   orderBy,
+		Limit:     int64(limitNumber),
 	}, nil
+}
+
+func isOrderByFieldValid(orderByField string) bool {
+	var validOrderByField = false
+	searchFields := []string{"created_at", "id", "location", "log_level", ""}
+	for _, val := range searchFields {
+		if val == orderByField {
+			validOrderByField = true
+		}
+	}
+	return validOrderByField
 }
 
 /*
@@ -154,8 +205,8 @@ func getNewLog(c *gin.Context) (*models.Log, error) {
 		if err.Error() == "EOF" {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"Errors": "Missing payload"})
 			return nil, nil
-		} else if missing, empty := logData.IsEmptyCreate(); empty {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"Errors": missing})
+		} else if errors, empty := logData.IsEmptyCreate(); empty {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"Errors": errors})
 			return nil, nil
 		}
 		c.AbortWithStatusJSON(http.StatusBadRequest, err)

@@ -32,7 +32,9 @@ type LogSearchFields struct {
 	CreatedAt *time.Time
 	FromDate  *time.Time
 	ToDate    *time.Time
+	OrderBy   string
 	Page      int64
+	Limit     int64
 }
 
 // Log defines the contents of a log
@@ -40,7 +42,7 @@ type Log struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty" binding:"-"`
 	CreatedAt time.Time          `bson:"created_at" json:"created_at"`
 	UpdatedAt time.Time          `bson:"updated_at,omitempty" json:"-" form:"-"`
-	LogLevel  string             `bson:"log_level" json:"log_level,omitempty" form:"log_level,omitempty" validate:"DEBUG|WARNING|INFO|ERROR|FATAL|ALL"`
+	LogLevel  string             `bson:"log_level" json:"log_level,omitempty" form:"log_level,omitempty" validate:"DEBUG|WARNING|INFO|ERROR|FATAL"`
 	Message   string             `bson:"message" json:"message" form:",omitempty"`
 	Extra     []string           `bson:"extra,omitempty" json:"extra,omitempty"`
 	Location  string             `bson:"location" json:"location" form:"location,omitempty"`
@@ -116,9 +118,15 @@ func (_log *Log) Create() error {
 //	[]map[string]interface{} - List of maps containing mongodb filters.
 //
 func (_log *Log) Find(fields LogSearchFields) (core.FindResults, error) {
+	configs := config.GetConfig()
+	findOptions := fields.getFindOptions()
+	limit := configs.Results.Limit
+	suppliedLimit := fields.Limit
 
-	limit := config.GetConfig().Results.Limit
-	findOptions := options.Find()
+	if suppliedLimit != 0 && suppliedLimit < limit {
+		limit = suppliedLimit
+	}
+
 	findOptions.SetLimit(limit)
 	findOptions.SetSkip(limit * fields.Page)
 
@@ -135,10 +143,31 @@ func (_log *Log) Find(fields LogSearchFields) (core.FindResults, error) {
 	err := logsColl.SimpleFind(&logs, filter, findOptions)
 
 	countOptions := options.Count()
+	totalDocuments, err := logsColl.CountDocuments(mgm.Ctx(), filter, countOptions)
 	countOptions.SetSkip(limit * (fields.Page + 1))
 	remainingDocumentCount, err := logsColl.CountDocuments(mgm.Ctx(), filter, countOptions)
-	results := core.FindResults{Data: logs, RemainingDocuments: remainingDocumentCount}
+	results := core.FindResults{Data: logs, Remaining: remainingDocumentCount, Total: totalDocuments, Limit: configs.Results.Limit}
 	return results, err
+}
+
+// Count returns the count of logs based on the provided log search fields.
+//
+// Receiver:
+//	*Log				_log
+//
+// Parameters:
+//	LogSearchFields		fields - Search fields.
+//
+// Returns
+//	[]map[string]interface{} - List of maps containing mongodb filters.
+//
+func (_log *Log) Count(fields LogSearchFields) (int64, error) {
+	log := Log{}
+	logsColl := mgm.Coll(&log)
+	countOptions := options.Count()
+	filter := bson.M{operator.And: fields.getFilters()}
+	totalDocuments, err := logsColl.CountDocuments(mgm.Ctx(), filter, countOptions)
+	return totalDocuments, err
 }
 
 // getFilters will create mongodb filters for the fields created_at, from, to, location, logLevel, id.
@@ -156,6 +185,7 @@ func (lsf *LogSearchFields) getFilters() []map[string]interface{} {
 	var locationPresent = lsf.Location != ""
 	var logLevelPresent = lsf.LogLevel != ""
 	var searchIDPresent = !lsf.ID.IsZero()
+
 	filters := []map[string]interface{}{}
 	if createdAtPresent {
 		filters = append(filters, map[string]interface{}{"created_at": lsf.CreatedAt})
@@ -170,11 +200,22 @@ func (lsf *LogSearchFields) getFilters() []map[string]interface{} {
 	} else {
 		filters = append(filters, map[string]interface{}{"log_level": bson.M{operator.In: core.LogLevels}})
 	}
+
 	if searchIDPresent {
 		filters = append(filters, map[string]interface{}{"_id": lsf.ID})
 	}
 
 	return filters
+}
+
+func (lsf *LogSearchFields) getFindOptions() *options.FindOptions {
+	var orderByPresent = lsf.OrderBy != ""
+	options := options.Find()
+	if orderByPresent {
+		options.SetSort(bson.D{{lsf.OrderBy, -1}})
+	}
+
+	return options
 }
 
 // IsEmptyCreate checks that the struct is not nil, and that the message and location are not empty.
@@ -183,7 +224,7 @@ func (lsf *LogSearchFields) getFilters() []map[string]interface{} {
 // Receiver:
 //	*Log				logModel
 //
-// Returns
+// ReturnsKeep r
 //	[]string	- Slice of validation messages.
 //	bool		- True if empty.
 //

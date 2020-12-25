@@ -5,9 +5,9 @@
 *.so
 *.dylib
 
-bin/
+logging_service/bin/
 
-config.yaml
+logging_service/config/*
 
 # Test binary, built with `go test -c`
 *.test
@@ -19,4 +19,4 @@ config.yaml
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
-__debug_bin
+logging_service/__debug_bin

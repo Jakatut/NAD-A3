@@ -41,6 +41,13 @@ type Error struct {
 // FindResults defines the results from a mongodb find. It includes the number of remaining documents and the
 // found data.
 type FindResults struct {
-	RemainingDocuments int64
-	Data               interface{}
+	Remaining int64       `json:"remaining,omitempty"`
+	Total     int64       `json:"total,omitempty"`
+	Limit     int64       `json:"limit,omitempty"`
+	Data      interface{} `json:"data,omitempty"`
+}
+
+// CountResults defines the results from a document count in mongodb.
+type CountResults struct {
+	Total int64 `json:"total,omitempty"`
 }
