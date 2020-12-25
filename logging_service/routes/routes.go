@@ -28,7 +28,7 @@ func Setup(router *gin.Engine) {
 
 	// Add logger, cross origin restrictions.
 	router.Use(
-		// gin.Logger(),
+		gin.Logger(),
 		cors.New(cors.Config{
 			AllowMethods:     []string{"POST", "GET"},
 			AllowHeaders:     []string{"Content-Type", "Origin", "Accept", "Authorization", "*"},
