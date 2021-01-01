@@ -5,9 +5,9 @@
 *.so
 *.dylib
 
-logging_service/bin/
+bin/
 
-logging_service/config/real_config.yaml
+config/real_config.yaml
 
 # Test binary, built with `go test -c`
 *.test
@@ -19,4 +19,4 @@ logging_service/config/real_config.yaml
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
-logging_service/__debug_bin
+__debug_bin
