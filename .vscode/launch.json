@@ -7,7 +7,9 @@
 			"request": "launch",
 			"mode": "auto",
 			"program": "${workspaceFolder}/logging_service",
-			"env": {},
+			"env": {
+				"LOGGING_SERVICE_CONFIG_PATH": "config/real_config.yaml"
+			},
 			"args": []
 		}
 	]

@@ -10,32 +10,21 @@ package models
  */
 
 import (
+	"context"
 	"logging_service/config"
 	"logging_service/core"
+	"strings"
 	"time"
 
+	"go.mongodb.org/mongo-driver/mongo"
+
+	"github.com/kamva/mgm/v3/operator"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	"github.com/kamva/mgm/v3/operator"
-
-	"github.com/globalsign/mgo/bson"
-
 	"github.com/kamva/mgm/v3"
 )
-
-// LogSearchFields defines the fields which users can use to filters logs which contain the same fields when searching.
-type LogSearchFields struct {
-	ID        primitive.ObjectID
-	LogLevel  string
-	Location  string
-	CreatedAt *time.Time
-	FromDate  *time.Time
-	ToDate    *time.Time
-	OrderBy   string
-	Page      int64
-	Limit     int64
-}
 
 // Log defines the contents of a log
 type Log struct {
@@ -51,7 +40,7 @@ type Log struct {
 // PrepareID method prepares by creating an object id from a string id.
 //
 // Receiver:
-//	*Log				_log
+//	*Log				l
 //
 // Parameters
 //	interface{}	-	id	- The id to be prepared.
@@ -60,7 +49,7 @@ type Log struct {
 //	interface{}	-	The id. as an object id.
 //	error		-	Any error that occurs.
 //
-func (_log *Log) PrepareID(id interface{}) (interface{}, error) {
+func (l *Log) PrepareID(id interface{}) (interface{}, error) {
 	if idStr, ok := id.(string); ok {
 		return primitive.ObjectIDFromHex(idStr)
 	}
@@ -72,44 +61,44 @@ func (_log *Log) PrepareID(id interface{}) (interface{}, error) {
 // GetID method return model's id
 //
 // Receiver:
-//	*Log				_log
+//	*Log				l
 //
 // Returns
 //	interface{}	-	The id.
 //
-func (_log *Log) GetID() interface{} {
-	return _log.ID
+func (l *Log) GetID() interface{} {
+	return l.ID
 }
 
 // SetID set id value of model's id field.
 //
 // Receiver:
-//	*Log				_log
+//	*Log				l
 //
 // Parameters
 //	interface{}	-	id	- The id to be set.
 //
-func (_log *Log) SetID(id interface{}) {
-	_log.ID = id.(primitive.ObjectID)
+func (l *Log) SetID(id interface{}) {
+	l.ID = id.(primitive.ObjectID)
 }
 
 // Create creates a log in the mongodb log collection.
 //
 // Receiver:
-//	*Log				_log
+//	*Log				l
 //
 // Returns
 //	error - Any error that occurs.
 //
-func (_log *Log) Create() error {
-	err := mgm.Coll(_log, &options.CollectionOptions{}).Create(_log)
+func (l *Log) Create() error {
+	err := mgm.Coll(l, &options.CollectionOptions{}).Create(l)
 	return err
 }
 
 // Find searches the log collection to find any logs that match the search criteria.
 //
 // Receiver:
-//	*Log				_log
+//	*Log				l
 //
 // Parameters:
 //	LogSearchFields		fields - Search fields.
@@ -117,9 +106,8 @@ func (_log *Log) Create() error {
 // Returns
 //	[]map[string]interface{} - List of maps containing mongodb filters.
 //
-func (_log *Log) Find(fields LogSearchFields) (core.FindResults, error) {
+func (l *Log) Find(ctx context.Context, fields LogSearchFields) (core.FindResults, error) {
 	configs := config.GetConfig()
-	findOptions := fields.getFindOptions()
 	limit := configs.Results.Limit
 	suppliedLimit := fields.Limit
 
@@ -127,25 +115,19 @@ func (_log *Log) Find(fields LogSearchFields) (core.FindResults, error) {
 		limit = suppliedLimit
 	}
 
+	findOptions := fields.getFindOptions()
 	findOptions.SetLimit(limit)
 	findOptions.SetSkip(limit * fields.Page)
-
-	logsColl := mgm.Coll(_log)
+	logsColl := mgm.Coll(l)
 	logs := []Log{}
 
-	filters := fields.getFilters()
-	filter := bson.M{operator.And: filters}
-	if len(filters) == 0 {
-		filter = bson.M{}
-	} else if len(filters) == 1 {
-		filter = filters[0]
-	}
+	filter := GetFilter(fields)
 	err := logsColl.SimpleFind(&logs, filter, findOptions)
 
 	countOptions := options.Count()
-	totalDocuments, err := logsColl.CountDocuments(mgm.Ctx(), filter, countOptions)
+	totalDocuments, err := logsColl.CountDocuments(ctx, filter, countOptions)
 	countOptions.SetSkip(limit * (fields.Page + 1))
-	remainingDocumentCount, err := logsColl.CountDocuments(mgm.Ctx(), filter, countOptions)
+	remainingDocumentCount, err := logsColl.CountDocuments(ctx, filter, countOptions)
 	results := core.FindResults{Data: logs, Remaining: remainingDocumentCount, Total: totalDocuments, Limit: configs.Results.Limit}
 	return results, err
 }
@@ -153,69 +135,78 @@ func (_log *Log) Find(fields LogSearchFields) (core.FindResults, error) {
 // Count returns the count of logs based on the provided log search fields.
 //
 // Receiver:
-//	*Log				_log
+//	*Log				l
 //
 // Parameters:
 //	LogSearchFields		fields - Search fields.
 //
 // Returns
-//	[]map[string]interface{} - List of maps containing mongodb filters.
+//	core.CountResults
+//  error
 //
-func (_log *Log) Count(fields LogSearchFields) (int64, error) {
+func (l *Log) Count(ctx context.Context, fields LogSearchFields) (core.CountResults, error) {
 	log := Log{}
 	logsColl := mgm.Coll(&log)
 	countOptions := options.Count()
+	_, all := IsValidLogLevel(fields.LogLevel)
+	if all {
+		fields.LogLevel = ""
+	}
+
 	filter := bson.M{operator.And: fields.getFilters()}
-	totalDocuments, err := logsColl.CountDocuments(mgm.Ctx(), filter, countOptions)
-	return totalDocuments, err
+	totalDocuments, err := logsColl.CountDocuments(ctx, filter, countOptions)
+	results := core.CountResults{}
+	results.Count = totalDocuments
+	return results, err
 }
 
-// getFilters will create mongodb filters for the fields created_at, from, to, location, logLevel, id.
+// Count returns the count of logs based on the provided log search fields.
 //
 // Receiver:
-//	*LogSearchFields				lsf
+//	*Log				l
+//
+// Parameters:
+//	LogSearchFields		fields - Search fields.
 //
 // Returns
-//	[]map[string]interface{} - List of maps containing mongodb filters.
+//	core.CountResults
+//  error
 //
-func (lsf *LogSearchFields) getFilters() []map[string]interface{} {
-	var createdAtPresent = !lsf.CreatedAt.IsZero()
-	var fromDatePresent = lsf.FromDate != nil && !lsf.FromDate.IsZero()
-	var toDatePresent = lsf.ToDate != nil && !lsf.ToDate.IsZero()
-	var locationPresent = lsf.Location != ""
-	var logLevelPresent = lsf.LogLevel != ""
-	var searchIDPresent = !lsf.ID.IsZero()
-
-	filters := []map[string]interface{}{}
-	if createdAtPresent {
-		filters = append(filters, map[string]interface{}{"created_at": lsf.CreatedAt})
-	} else if fromDatePresent && toDatePresent {
-		filters = append(filters, map[string]interface{}{"created_at": bson.M{operator.Gte: lsf.FromDate, operator.Lte: lsf.ToDate}})
-	}
-	if locationPresent {
-		filters = append(filters, map[string]interface{}{"location": lsf.Location})
-	}
-	if logLevelPresent {
-		filters = append(filters, map[string]interface{}{"log_level": lsf.LogLevel})
-	} else {
-		filters = append(filters, map[string]interface{}{"log_level": bson.M{operator.In: core.LogLevels}})
+func (l *Log) CountByDates(ctx context.Context, fields LogSearchFields) ([]core.CountResultsWithDate, error) {
+	log := Log{}
+	logsColl := mgm.Coll(&log)
+	_, all := IsValidLogLevel(fields.LogLevel)
+	if all {
+		fields.LogLevel = ""
 	}
 
-	if searchIDPresent {
-		filters = append(filters, map[string]interface{}{"_id": lsf.ID})
+	// filter := GetFilter(fields)
+	// matchStage := bson.D{{operator.Match, filter}}
+	// groupStage := bson.D{{operator.Group, bson.D{{"_id", bson.M{"date": bson.M{operator.DateToString: bson.M{"format": "%Y-%m-%d", "date": "$created_at"}}, "log_level": "$log_level", "total": bson.M{operator.Sum: 1}}}}}}
+	groupStage := bson.D{
+		{
+			operator.Group, bson.M{
+				"_id": bson.M{
+					"date": bson.M{
+						operator.DateToString: bson.M{
+							"format": "%Y-%m-%d", "date": "$created_at",
+						},
+					},
+					"log_level": "$log_level",
+				},
+				"count": bson.M{operator.Sum: 1},
+			},
+		},
 	}
 
-	return filters
-}
-
-func (lsf *LogSearchFields) getFindOptions() *options.FindOptions {
-	var orderByPresent = lsf.OrderBy != ""
-	options := options.Find()
-	if orderByPresent {
-		options.SetSort(bson.D{{lsf.OrderBy, -1}})
+	counts := []core.CountResultsWithDate{}
+	countByDatesCursor, err := logsColl.Aggregate(ctx, mongo.Pipeline{groupStage})
+	if err != nil {
+		return counts, err
 	}
+	countByDatesCursor.All(ctx, &counts)
 
-	return options
+	return counts, nil
 }
 
 // IsEmptyCreate checks that the struct is not nil, and that the message and location are not empty.
@@ -224,23 +215,57 @@ func (lsf *LogSearchFields) getFindOptions() *options.FindOptions {
 // Receiver:
 //	*Log				logModel
 //
-// ReturnsKeep r
+// Returns:
 //	[]string	- Slice of validation messages.
 //	bool		- True if empty.
 //
-func (_log *Log) IsEmptyCreate() ([]string, bool) {
-	if _log == nil {
+func (l *Log) IsEmptyCreate() ([]string, bool) {
+	if l == nil {
 		return []string{"missing field: message", "missing field: location"}, true
 	}
 
 	missingFields := []string{}
 
-	if _log.Message == "" {
+	if l.Message == "" {
 		missingFields = append(missingFields, "missing field: message")
 	}
-	if _log.Location == "" {
+	if l.Location == "" {
 		missingFields = append(missingFields, "missing field: location")
 	}
 
 	return missingFields, len(missingFields) > 0
+}
+
+// IsValidLogLevel check the provided logLevel is one of "DEBUG", "WARNING", "ERROR", "FATAL", "INFO", "ALL"|""
+//
+// Parameters:
+//	string	logLevel	- Log level to get the last file for.
+//
+// Returns
+//	bool - True if the given log level is a valid log level.
+//  bool - True if the given log level is ALL
+func IsValidLogLevel(logLevel string) (bool, bool) {
+	if strings.ToUpper(logLevel) == "ALL" {
+		return true, true
+	}
+
+	for _, val := range core.LogLevels {
+		if strings.ToUpper(logLevel) == val || logLevel == "" {
+			return true, false
+		}
+	}
+
+	return false, false
+}
+
+func GetFilter(fields LogSearchFields) bson.M {
+	filters := fields.getFilters()
+	filter := bson.M{operator.And: filters}
+	if len(filters) == 0 {
+		filter = bson.M{}
+	} else if len(filters) == 1 {
+		filter = filters[0]
+	}
+
+	return filter
 }

@@ -12,6 +12,7 @@ package routes
 import (
 	"logging_service/config"
 	"logging_service/handlers"
+	"logging_service/security"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -21,21 +22,25 @@ import (
 //
 // Parameters:
 //	*gin.Engine				router		- gin router
-//	*core.FileMutexPool		mutexPool	- contains Read/Write mutexes for each log type.
-//	*core.LogTypeCounter	counters	- contains id counters for each log type
 //
 func Setup(router *gin.Engine) {
 
+	var configs = config.GetConfig()
+
 	// Add logger, cross origin restrictions.
 	router.Use(
-		gin.Logger(),
 		cors.New(cors.Config{
 			AllowMethods:     []string{"POST", "GET"},
 			AllowHeaders:     []string{"Content-Type", "Origin", "Accept", "Authorization", "*"},
 			ExposeHeaders:    []string{"Content-Length"},
 			AllowCredentials: true,
 			AllowOriginFunc: func(origin string) bool {
-				return true
+				for _, val := range configs.Server.AllowedOrigins {
+					if val == origin {
+						return true
+					}
+				}
+				return false
 			},
 		}),
 	)
@@ -43,14 +48,11 @@ func Setup(router *gin.Engine) {
 	router.LoadHTMLGlob("public/templates/*.tmpl.html")
 	router.Static("/static", "public/static")
 
-	// Create a log group and give JWT auth middleware.
-	// authorized := router.Group("/log")
-	// router.Use(security.AuthenticateJWT())
+	router.Use(security.AuthenticateJWT())
 	router.GET("/log", handlers.HandleGetLog)
 	router.GET("/log/:log_level", handlers.HandleGetLog)
 	router.POST("/log/:log_level", handlers.HandlePostLog)
-	router.GET("/analytics/count/", handlers.HandleGetLogCount)
-	router.GET("/analytics/count/:log_level", handlers.HandleGetLogCount)
+	router.GET("/log/:log_level/count/*type", handlers.HandleGetLogCount)
 
-	router.Run(":" + config.GetConfig().Server.Port)
+	router.Run(":" + configs.Server.Port)
 }

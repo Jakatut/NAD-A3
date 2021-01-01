@@ -6,7 +6,7 @@ $(DOCKER_CMD): clean
 	mkdir -p $(DOCKER_BUILD)
 	$(GO_BUILD_ENV) go build -v -o $(DOCKER_CMD) .
 	
-export LOGGING_SERVICE_CONFIG_PATH=config/config.yaml
+export LOGGING_SERVICE_CONFIG_PATH=config/real_config.yaml
 
 build:
 	go build -o bin/logging_service -v .

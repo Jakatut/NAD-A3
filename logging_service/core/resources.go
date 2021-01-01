@@ -47,7 +47,19 @@ type FindResults struct {
 	Data      interface{} `json:"data,omitempty"`
 }
 
-// CountResults defines the results from a document count in mongodb.
+// CountResults defines the results from a document count.
 type CountResults struct {
-	Total int64 `json:"total,omitempty"`
+	Count int64 `bson:"count" json:"count"`
+}
+
+// CountResultsWithDate defines the results from a document count where documents are groups by date.
+type CountResultsWithDate struct {
+	ID    CountWithDateID `bson:"_id,omitempty" json:"id"`
+	Count int64           `bson:"count" json:"total"`
+}
+
+// CountWithDateID defines the identifier used for a document count on an aggregation
+type CountWithDateID struct {
+	Date     string `bson:"date" json:"date,omitempty"`
+	LogLevel string `bson:"log_level" json:"log_level,omitempty"`
 }

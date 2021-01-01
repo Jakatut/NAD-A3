@@ -17,6 +17,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// Values contains all configuration values from the top parents.
 type Values struct {
 	Server   server   `yaml:"Server"`
 	IO       io       `yaml:"IO"`
@@ -26,7 +27,8 @@ type Values struct {
 }
 
 type server struct {
-	Port string `yaml:"PORT"`
+	Port           string   `yaml:"PORT"`
+	AllowedOrigins []string `yaml:"ALLOWED_ORIGINS"`
 }
 
 type io struct {
@@ -35,7 +37,7 @@ type io struct {
 
 type auth struct {
 	Auth0Audience string `yaml:"AUTH_0_AUDIENCE"`
-	Auth0URI      string `yaml:"AUTH_0_URI"`
+	Auth0Domain   string `yaml:"AUTH_0_DOMAIN"`
 }
 
 type database struct {

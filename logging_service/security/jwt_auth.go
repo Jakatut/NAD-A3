@@ -28,8 +28,8 @@ func AuthenticateJWT() gin.HandlerFunc {
 	return func(c *gin.Context) {
 
 		conf := config.GetConfig()
-		client := auth0.NewJWKClient(auth0.JWKClientOptions{URI: conf.Auth.Auth0URI + ".well-known/jwks.json"}, nil)
-		configuration := auth0.NewConfiguration(client, []string{conf.Auth.Auth0Audience}, conf.Auth.Auth0URI, jose.RS256)
+		client := auth0.NewJWKClient(auth0.JWKClientOptions{URI: conf.Auth.Auth0Domain + ".well-known/jwks.json"}, nil)
+		configuration := auth0.NewConfiguration(client, []string{conf.Auth.Auth0Audience}, conf.Auth.Auth0Domain, jose.RS256)
 		validator := auth0.NewValidator(configuration, nil)
 
 		_, err := validator.ValidateRequest(c.Request)
