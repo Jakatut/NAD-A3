@@ -180,9 +180,8 @@ func (l *Log) CountByDates(ctx context.Context, fields LogSearchFields) ([]core.
 		fields.LogLevel = ""
 	}
 
-	// filter := GetFilter(fields)
-	// matchStage := bson.D{{operator.Match, filter}}
-	// groupStage := bson.D{{operator.Group, bson.D{{"_id", bson.M{"date": bson.M{operator.DateToString: bson.M{"format": "%Y-%m-%d", "date": "$created_at"}}, "log_level": "$log_level", "total": bson.M{operator.Sum: 1}}}}}}
+	filter := GetFilter(fields)
+	matchStage := bson.D{{operator.Match, filter}}
 	groupStage := bson.D{
 		{
 			operator.Group, bson.M{
@@ -200,7 +199,7 @@ func (l *Log) CountByDates(ctx context.Context, fields LogSearchFields) ([]core.
 	}
 
 	counts := []core.CountResultsWithDate{}
-	countByDatesCursor, err := logsColl.Aggregate(ctx, mongo.Pipeline{groupStage})
+	countByDatesCursor, err := logsColl.Aggregate(ctx, mongo.Pipeline{matchStage, groupStage})
 	if err != nil {
 		return counts, err
 	}
