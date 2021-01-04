@@ -160,7 +160,7 @@ func (l *Log) Count(ctx context.Context, fields LogSearchFields) (core.CountResu
 	return results, err
 }
 
-// Count returns the count of logs based on the provided log search fields.
+// CountByDates returns the count of logs based on the provided log search fields by date (i.e. count of all logs for each day of the year if any).
 //
 // Receiver:
 //	*Log				l
@@ -169,7 +169,7 @@ func (l *Log) Count(ctx context.Context, fields LogSearchFields) (core.CountResu
 //	LogSearchFields		fields - Search fields.
 //
 // Returns
-//	core.CountResults
+//	[]core.CountResults
 //  error
 //
 func (l *Log) CountByDates(ctx context.Context, fields LogSearchFields) ([]core.CountResultsWithDate, error) {

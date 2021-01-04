@@ -55,7 +55,7 @@ type CountResults struct {
 // CountResultsWithDate defines the results from a document count where documents are groups by date.
 type CountResultsWithDate struct {
 	ID    CountWithDateID `bson:"_id,omitempty" json:"id"`
-	Count int64           `bson:"count" json:"total"`
+	Count int64           `bson:"count" json:"count"`
 }
 
 // CountWithDateID defines the identifier used for a document count on an aggregation
