@@ -1,6 +1,5 @@
-# NAD-A3
-Logging service written in Golang with Gin-gonic and a Client written in C# with xaml
-By Conor and Attila MacPherson
+# Logging Service
+Logging service written in Golang with Gin-gonic
 
 ## Run it
 
